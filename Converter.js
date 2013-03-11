@@ -331,6 +331,11 @@ Converter.prototype = {
 							errMsg = args[ 1 ];
 							break;
 							
+						case 'fail' :
+							ret = "expect( true ).toBe( false );";   // Seems to be no Jasmine fail() function
+							errMsg = args[ 0 ];
+							break;
+							
 							
 						default :
 							throw new Error( "Unknown function in YUI 'Assert' package: '" + assertFn + "'. Need to add a handler for it." ); 

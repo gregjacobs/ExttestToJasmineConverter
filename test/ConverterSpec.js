@@ -184,6 +184,43 @@ describe( "Converter", function() {
 		} );
 		
 		
+		it( "should remove multiple try/catch blocks for JsMockito, and properly format whitespace when indented", function() {
+			var input = [
+				'\ttry {',
+				'\t\tJsMockito.verify( models[ 0 ] ).save();',
+				'\t\tJsMockito.verify( models[ 0 ], JsMockito.Verifiers.never() ).destroy();',
+				'\t\tJsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).save();',
+				'\t\tJsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).destroy();',
+				'\t} catch( e ) {',
+				'\t\tY.Assert.fail( typeof e === "string" ? e : e.message );',
+				'\t}',
+				'\t// some other code here',
+				'\ttry {',
+				'\t\tJsMockito.verify( models[ 0 ] ).save();',
+				'\t\tJsMockito.verify( models[ 0 ], JsMockito.Verifiers.never() ).destroy();',
+				'\t\tJsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).save();',
+				'\t\tJsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).destroy();',
+				'\t} catch( e ) {',
+				'\t\tY.Assert.fail( typeof e === "string" ? e : e.message );',
+				'\t}'
+			].join( "\n" );
+			
+			var expected = [
+				'\tJsMockito.verify( models[ 0 ] ).save();',
+				'\tJsMockito.verify( models[ 0 ], JsMockito.Verifiers.never() ).destroy();',
+				'\tJsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).save();',
+				'\tJsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).destroy();',
+				'\t// some other code here',
+				'\tJsMockito.verify( models[ 0 ] ).save();',
+				'\tJsMockito.verify( models[ 0 ], JsMockito.Verifiers.never() ).destroy();',
+				'\tJsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).save();',
+				'\tJsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).destroy();'
+			].join( "\n" );
+			
+			expect( converter.removeTryCatchAroundJsMockito( input ) ).to.equal( expected );
+		} );
+		
+		
 		it( "should leave non-JsMockito try/catch blocks alone", function() {
 			var input = [
 				'try {',
@@ -563,6 +600,12 @@ describe( "Converter", function() {
 				
 				expect( converter.convertAssertions( 'Y.Assert.isNotNull( someVar, "someVar should have not been null" );' ) )
 					.to.equal( 'expect( someVar ).not.toBe( null );  // orig YUI Test err msg: "someVar should have not been null"' );
+			} );
+			
+			
+			it( "should properly convert Y.Assert.fail() assertions", function() {
+				expect( converter.convertAssertions( 'Y.Assert.fail( "test should have errored by now" );' ) )
+					.to.equal( 'expect( true ).toBe( false );  // orig YUI Test err msg: "test should have errored by now"' );
 			} );
 		
 		} );
@@ -951,6 +994,19 @@ describe( "Converter", function() {
 		it( "should convert a fairly simple Ext.Test file", function() {
 			var input = fs.readFileSync( __dirname + '/fixture/simple_input.js', 'utf8' ),
 			    expectedOutput = fs.readFileSync( __dirname + '/fixture/simple_expectedOutput.js', 'utf8' );
+			
+			// Strip all carriage returns off of the input and expected output. They needlessly get in the way.
+			input = input.replace( /\r/g, '' );
+			expectedOutput = expectedOutput.replace( /\r/g, '' );
+			
+			var convertedInput = converter.convert( input );
+			expect( convertedInput ).to.equal( expectedOutput );
+		} );
+	
+		
+		it( "should convert JsMockito try/catch blocks in a file", function() {
+			var input = fs.readFileSync( __dirname + '/fixture/jsMockitoTests_input.js', 'utf8' ),
+			    expectedOutput = fs.readFileSync( __dirname + '/fixture/jsMockitoTests_expectedOutput.js', 'utf8' );
 			
 			// Strip all carriage returns off of the input and expected output. They needlessly get in the way.
 			input = input.replace( /\r/g, '' );
