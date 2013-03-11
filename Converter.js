@@ -122,10 +122,10 @@ Converter.prototype = {
 	 * @return {String} The new output.
 	 */
 	convertOuterSuite : function( input ) {
-		var outerSuiteRe = /^tests\.(.*?)\.add\(\s*new\s*Ext\.test\.TestSuite\(\s*\{\s*name\s*:\s*['"](.*?)['"],/m,
+		var outerSuiteRe = /^([ \t]*)tests\.(.*?)\.add\(\s*new\s*Ext\.test\.TestSuite\(\s*\{\s*name\s*:\s*['"](.*?)['"],/m,
 		    endOfFileOuterSuiteCloseRe = /\}\s*\)\s*\);\s*$/m;
 		
-		input = input.replace( outerSuiteRe, 'describe( "$1.$2", function() {' );
+		input = input.replace( outerSuiteRe, '$1describe( "$2.$3", function() {' );
 		input = input.replace( endOfFileOuterSuiteCloseRe, '} );' );
 		
 		return input;

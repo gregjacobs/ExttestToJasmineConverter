@@ -146,6 +146,48 @@ describe( "Converter", function() {
 			].join( "\n" ) );
 		} );
 		
+		
+		it( "should convert the outer suite block to a `describe()` block, even if it is indented", function() {
+			var input = [
+				'\ttests.unit.thePackage.add( new Ext.test.TestSuite( {',
+				'\t\tname: "TheClass",',
+				'\t\t"something should happen" : function() {',
+				'\t\t\tvar a = 1;',
+				'\t\t}',
+				'\t} ) );'
+			].join( "\n" );
+			
+			var output = converter.convertOuterSuite( input );
+			expect( output ).to.equal( [
+				'\tdescribe( "unit.thePackage.TheClass", function() {',
+				'\t\t"something should happen" : function() {',
+				'\t\t\tvar a = 1;',
+				'\t\t}',
+				'\t} );'
+			].join( "\n" ) );
+		} );
+		
+		
+		it( "should convert the outer suite block to a `describe()` block, even if it is indented with 4 spaces", function() {
+			var input = [
+				'    tests.unit.thePackage.add( new Ext.test.TestSuite( {',
+				'        name: "TheClass",',
+				'        "something should happen" : function() {',
+				'            var a = 1;',
+				'        }',
+				'    } ) );'
+			].join( "\n" );
+			
+			var output = converter.convertOuterSuite( input );
+			expect( output ).to.equal( [
+				'    describe( "unit.thePackage.TheClass", function() {',
+				'        "something should happen" : function() {',
+				'            var a = 1;',
+				'        }',
+				'    } );'
+			].join( "\n" ) );
+		} );
+		
 	} );
 	
 	
@@ -244,7 +286,9 @@ describe( "Converter", function() {
 	
 	xdescribe( "convertSetupAndTeardown()", function() {
 		
-		
+		it( "todo", function() {
+			
+		} );
 		
 	} );
 	
