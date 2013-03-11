@@ -1,3 +1,4 @@
+/*global Ext, Y, tests, RestProxy */
 tests.unit.persistence.add( new Ext.test.TestSuite( {
 	name: 'RestProxy',
 

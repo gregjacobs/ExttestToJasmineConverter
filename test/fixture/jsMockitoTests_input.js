@@ -1,3 +1,4 @@
+/*global Ext, Y, tests, JsMockito, RestProxy */
 tests.unit.persistence.add( new Ext.test.TestSuite( {
 	name: 'RestProxy',
 
@@ -21,8 +22,8 @@ tests.unit.persistence.add( new Ext.test.TestSuite( {
 				Y.Assert.areSame( '/testUrl/42', proxy.buildUrl( 'delete', 42 ), "buildUrl() should have appended the ID when doing a 'delete'" );
 
 				try {
-					JsMockito.verify( something ).methodCalled();
-					JsMockito.verify( something2 ).methodCalled();
+					JsMockito.verify( proxy ).methodCalled();
+					JsMockito.verify( proxy ).method2Called();
 				} catch( e ) {
 					Y.Assert.fail( typeof e === "string" ? e : e.message );
 				}
@@ -42,8 +43,8 @@ tests.unit.persistence.add( new Ext.test.TestSuite( {
 				Y.Assert.areSame( '/testUrl/42', proxy.buildUrl( 'delete', 42 ), "buildUrl() should have appended the ID when doing a 'delete'" );
 
 				try {
-					JsMockito.verify( something ).methodCalled();
-					JsMockito.verify( something2 ).methodCalled();  // some comment
+					JsMockito.verify( proxy ).methodCalled();
+					JsMockito.verify( proxy ).method2Called();  // some comment
 				} catch( e ) {
 					Y.Assert.fail( typeof e === "string" ? e : e.message );
 				}
@@ -51,7 +52,7 @@ tests.unit.persistence.add( new Ext.test.TestSuite( {
 				Y.Assert.areSame( '/testUrl/42', proxy.buildUrl( 'update', 42 ), "buildUrl() should have appended the ID when doing a 'update'" );
 
 				try {
-					doSomething();
+					proxy.doSomething();
 				} catch( ex ) {
 					Y.Assert.fail( "Non-mockito try/catch" );
 				}

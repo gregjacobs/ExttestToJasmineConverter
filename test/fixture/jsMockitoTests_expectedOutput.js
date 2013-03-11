@@ -1,4 +1,4 @@
-/*global describe, beforeEach, afterEach, it */
+/*global RestProxy, describe, beforeEach, afterEach, it, expect, JsMockito */
 describe( "unit.persistence.RestProxy", function() {
 
 	describe( "Test buildUrl()", function() {
@@ -15,8 +15,8 @@ describe( "unit.persistence.RestProxy", function() {
 			expect( proxy.buildUrl( 'update', 42 ) ).toBe( '/testUrl/42' );  // orig YUI Test err msg: "buildUrl() should have appended the ID when doing a 'update'"
 			expect( proxy.buildUrl( 'delete', 42 ) ).toBe( '/testUrl/42' );  // orig YUI Test err msg: "buildUrl() should have appended the ID when doing a 'delete'"
 
-			JsMockito.verify( something ).methodCalled();
-			JsMockito.verify( something2 ).methodCalled();
+			JsMockito.verify( proxy ).methodCalled();
+			JsMockito.verify( proxy ).method2Called();
 		
 		} );
 
@@ -33,14 +33,14 @@ describe( "unit.persistence.RestProxy", function() {
 			expect( proxy.buildUrl( 'update', 42 ) ).toBe( '/testUrl/42' );  // orig YUI Test err msg: "buildUrl() should have appended the ID when doing a 'update'"
 			expect( proxy.buildUrl( 'delete', 42 ) ).toBe( '/testUrl/42' );  // orig YUI Test err msg: "buildUrl() should have appended the ID when doing a 'delete'"
 
-			JsMockito.verify( something ).methodCalled();
-			JsMockito.verify( something2 ).methodCalled();  // some comment
+			JsMockito.verify( proxy ).methodCalled();
+			JsMockito.verify( proxy ).method2Called();  // some comment
 		
 
 			expect( proxy.buildUrl( 'update', 42 ) ).toBe( '/testUrl/42' );  // orig YUI Test err msg: "buildUrl() should have appended the ID when doing a 'update'"
 
 			try {
-				doSomething();
+				proxy.doSomething();
 			} catch( ex ) {
 				expect( true ).toBe( false );  // orig YUI Test err msg: "Non-mockito try/catch"
 			}

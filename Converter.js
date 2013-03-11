@@ -22,7 +22,7 @@ Converter.prototype = {
 		str = this.removeTryCatchAroundJsMockito( str );
 		str = this.convertOuterSuite( str );
 		str = this.convertSuites( str );
-		str = this.convertSetupAndTeardown( str );
+		str = this.convertSetUpAndTearDown( str );
 		str = this.convertTests( str );
 		str = this.convertAssertions( str );
 		
@@ -53,8 +53,8 @@ Converter.prototype = {
 				return ( e !== 'Ext' && e !== 'Y' && e !== 'tests' );
 			} );
 			
-			// Add the Jasmine 'describe', 'beforeEach', 'afterEach', and 'it' globals
-			globalsArr = globalsArr.concat( [ 'describe', 'beforeEach', 'afterEach', 'it' ] );
+			// Add the Jasmine 'describe', 'beforeEach', 'afterEach', 'it', and 'expect' globals
+			globalsArr = globalsArr.concat( [ 'describe', 'beforeEach', 'afterEach', 'it', 'expect' ] );
 			
 			// Move JsMockito to the end of the list, if it is present. JsMockito feels like it should be after 
 			// the test harness globals
@@ -69,7 +69,7 @@ Converter.prototype = {
 			
 		} else {
 			// No existing globals, simply prepend the globals
-			return "/*global describe, beforeEach, afterEach, it */\n" + input;
+			return "/*global describe, beforeEach, afterEach, it, expect */\n" + input;
 		}
 	},
 	
@@ -205,17 +205,9 @@ Converter.prototype = {
 		// First, loop through every match, finding and replacing the closing brace of either '}' or '},'
 		// with '} );' (which is the proper close for a `describe()` block)
 		while( suiteMatch = suiteRe.exec( input ) ) { 
-			var openingBraceIdx = suiteMatch.index + suiteMatch[ 0 ].indexOf( '{' ),
-			    closingBraceIdx = this.findMatchingClosingBrace( input, openingBraceIdx );
-			
-			var closingBraceRe = /\}\s*?,?/g;  // need 'g' flag to be able to set lastIndex
-			closingBraceRe.lastIndex = closingBraceIdx;  // start at the closing brace we found
-			
-			var closingBrace = closingBraceRe.exec( input )[ 0 ],
-			    closingBraceLen = closingBrace.length;
-			input = input.substring( 0, closingBraceIdx ) + '} );' + input.substring( closingBraceIdx + closingBraceLen );
+			var openingBraceIdx = suiteMatch.index + suiteMatch[ 0 ].indexOf( '{' );
+			input = this.replaceMatchingClosingBrace( input, openingBraceIdx );
 		}
-		
 		
 		// Now replace all suites found with describe() blocks
 		input = input.replace( suiteRe, '$1describe( "$2", function() {' );
@@ -234,9 +226,49 @@ Converter.prototype = {
 	 * @param {String} input
 	 * @return {String} The new output.
 	 */
-	convertSetupAndTeardown : function( input ) {
-		console.log( "TODO: Implement convertSetupAndTeardown" );
-		return input;
+	convertSetUpAndTearDown : function( input ) {
+		var setUpTearDownRe = /^([ \t]*)(setUp|tearDown)\s*:\s*function\(\)\s*\{/gm,
+		    match,
+		    openingBraceIdx,
+		    closingBraceIdx;
+		
+		// First, loop through every setUp() and tearDown() match, finding and replacing the closing brace of either '}' or '},'
+		// with '} );' (which is the proper close for `beforeEach()` and `afterEach()` blocks)
+		while( match = setUpTearDownRe.exec( input ) ) {
+			openingBraceIdx = match.index + match[ 0 ].indexOf( '{' );
+			input = this.replaceMatchingClosingBrace( input, openingBraceIdx );
+		}
+		
+		
+		// Now process the code for the setUp() and tearDown() methods. We want to replace all occurrences of `this` to `thisSuite`.
+		// Also, we want to add `var thisSuite = {};` above the method for 'this' scoped variables.
+		while( match = setUpTearDownRe.exec( input ) ) {
+			var matchIdx = match.index,
+			    indentWhitespace = match[ 1 ];
+			
+			openingBraceIdx = matchIdx + match[ 0 ].indexOf( '{' );
+			closingBraceIdx = this.findMatchingClosingBrace( input, openingBraceIdx );
+			
+			var codeInMethod = input.substring( openingBraceIdx + 1, closingBraceIdx );
+			codeInMethod = codeInMethod.replace( /\bthis\.\b/g, 'thisSuite.' );
+			
+			// Build the new beforeEach() or afterEach() method, based on what the match was (either setUp() or tearDown())
+			var newInput = input.substring( 0, matchIdx ) + indentWhitespace;
+			if( match[ 0 ].indexOf( 'setUp' ) !== -1 ) {
+				newInput += 'var thisSuite = {};\n\n' + indentWhitespace + 'beforeEach( function() {';
+			} else {
+				newInput += 'afterEach( function() {';
+			}
+			newInput += codeInMethod + input.substring( closingBraceIdx );
+			input = newInput;
+			
+			// Reset the RegExp's lastIndex property, so that we start searching again at the same position as the last
+			// match, minus the number of characters for the added `var thisSuite = {};\n\n`. We don't want code changes 
+			// to affect the offset and possibly have the RegExp miss a match.
+			setUpTearDownRe.lastIndex = Math.max( matchIdx - 11, 0 );
+		}
+		
+		return input;  // converted input
 	},
 	
 	
@@ -252,25 +284,39 @@ Converter.prototype = {
 		// 1) "something should happen" : function() {
 		// 2) test_somethingShouldHappen : function() {
 		var testRe = /^([ \t]*)(?:"|test_?)(.*?)"?\s*:\s*function\(\)\s*\{/gm,
-		    testMatch;
+		    testMatch,
+		    openingBraceIdx,
+		    closingBraceIdx;
 		
 		// First, loop through every match, finding and replacing the closing brace of either '}' or '},'
 		// with '} );' (which is the proper close for an `it()` block)
 		while( testMatch = testRe.exec( input ) ) { 
-			var openingBraceIdx = testMatch.index + testMatch[ 0 ].indexOf( '{' ),
-			    closingBraceIdx = this.findMatchingClosingBrace( input, openingBraceIdx );
-			
-			var closingBraceRe = /\}\s*?,?/g;  // need 'g' flag to be able to set lastIndex
-			closingBraceRe.lastIndex = closingBraceIdx;  // start at the closing brace we found
-			
-			var closingBrace = closingBraceRe.exec( input )[ 0 ],
-			    closingBraceLen = closingBrace.length;
-			input = input.substring( 0, closingBraceIdx ) + '} );' + input.substring( closingBraceIdx + closingBraceLen );
+			openingBraceIdx = testMatch.index + testMatch[ 0 ].indexOf( '{' );
+			input = this.replaceMatchingClosingBrace( input, openingBraceIdx );
 		}
 		
-		
-		// Now replace all suites found with describe() blocks
-		input = input.replace( testRe, '$1it( "$2", function() {' );
+		// Now process the code for the test methods. We want to replace all occurrences of `this` to `thisSuite`.
+		while( testMatch = testRe.exec( input ) ) {
+			var matchIdx = testMatch.index,
+			    indentWhitespace = testMatch[ 1 ];
+			
+			openingBraceIdx = matchIdx + testMatch[ 0 ].lastIndexOf( '{' );
+			closingBraceIdx = this.findMatchingClosingBrace( input, openingBraceIdx );
+			
+			var codeInMethod = input.substring( openingBraceIdx + 1, closingBraceIdx );
+			codeInMethod = codeInMethod.replace( /\bthis\.\b/g, 'thisSuite.' );
+			
+			// Build the new it() method
+			var newInput = [];
+			newInput[ newInput.length ] = input.substring( 0, matchIdx ) + indentWhitespace;
+			newInput[ newInput.length ] = 'it( "' + testMatch[ 2 ] + '", function() {';
+			newInput[ newInput.length ] = codeInMethod + input.substring( closingBraceIdx );
+			input = newInput.join( "" );
+			
+			// Reset the RegExp's lastIndex property, so that we start searching again at the same position as the last
+			// match. We don't want code changes to affect the offset and possibly have the RegExp miss a match.
+			testRe.lastIndex = matchIdx;
+		}
 		
 		return input;  // converted input
 	},
@@ -581,6 +627,31 @@ Converter.prototype = {
 		}
 	},
 	
+	
+	/**
+	 * Utility method used to replace a matching closing curly brace that was used in the object literal form
+	 * for Ext.Test of either `}` or `},`, to the end function + call brace `} );`
+	 * 
+	 * This method is used to replace `suites`, `tests`, `setUp()`, and `tearDown()` methods to be the correct end brace
+	 * sequence for `describe()`, `it()`, `beforeEach()`, and `afterEach()` methods, respectively.
+	 * 
+	 * @protected
+	 * @param {String} input The input string.
+	 * @param {Number} openingBraceIdx The index of the opening brace to replace.
+	 * @return {String} The converted input, with the end brace replaced to the correct sequence.
+	 */
+	replaceMatchingClosingBrace : function( input, openingBraceIdx ) {
+		var closingBraceIdx = this.findMatchingClosingBrace( input, openingBraceIdx );
+		
+		var closingBraceRe = /\}\s*?,?/g;  // need 'g' flag to be able to set lastIndex
+		closingBraceRe.lastIndex = closingBraceIdx;  // start at the closing brace we found
+		
+		var closingBrace = closingBraceRe.exec( input )[ 0 ],
+		    closingBraceLen = closingBrace.length;
+		input = input.substring( 0, closingBraceIdx ) + '} );' + input.substring( closingBraceIdx + closingBraceLen );
+		
+		return input;  // converted input
+	},
 	
 	
 	/**

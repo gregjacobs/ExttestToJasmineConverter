@@ -16,7 +16,7 @@ describe( "Converter", function() {
 			var input = "test test test",
 			    output = converter.convertJsHintGlobals( input );
 			
-			expect( output ).to.equal( "/*global describe, beforeEach, afterEach, it */\n" + input );
+			expect( output ).to.equal( "/*global describe, beforeEach, afterEach, it, expect */\n" + input );
 		} );
 		
 		
@@ -24,7 +24,7 @@ describe( "Converter", function() {
 			var input = "/*global window, jQuery, _, Ext, Y, tests */\ntest test test",
 			    output = converter.convertJsHintGlobals( input );
 			
-			expect( output ).to.equal( "/*global window, jQuery, _, describe, beforeEach, afterEach, it */\ntest test test" );
+			expect( output ).to.equal( "/*global window, jQuery, _, describe, beforeEach, afterEach, it, expect */\ntest test test" );
 		} );
 		
 		
@@ -32,7 +32,7 @@ describe( "Converter", function() {
 			var input = "/*global window, jQuery, _, Ext, Y, JsMockito, tests */\ntest test test",
 			    output = converter.convertJsHintGlobals( input );
 			
-			expect( output ).to.equal( "/*global window, jQuery, _, describe, beforeEach, afterEach, it, JsMockito */\ntest test test" );
+			expect( output ).to.equal( "/*global window, jQuery, _, describe, beforeEach, afterEach, it, expect, JsMockito */\ntest test test" );
 		} );
 		
 	} );
@@ -420,10 +420,89 @@ describe( "Converter", function() {
 	
 	
 	
-	xdescribe( "convertSetupAndTeardown()", function() {
+	describe( "convertSetUpAndTearDown()", function() {
 		
-		it( "todo", function() {
+		it( "should convert setUp() to Jasmine's `beforeEach()`, adding the `thisSuite` var declaration above it, and changing all `this` refs to `thisSuite`", function() {
+			var input = [
+				'setUp : function() {',
+				'\tthis.proxy = new RestProxy( {',
+				'\t\turlRoot : "/testUrl"',
+				'\t\tappendId : false',
+				'\t} );',
+				'},'
+			].join( '\n' );
 			
+			var expectedOutput = [
+				'var thisSuite = {};',
+				'',
+				'beforeEach( function() {',
+				'\tthisSuite.proxy = new RestProxy( {',
+				'\t\turlRoot : "/testUrl"',
+				'\t\tappendId : false',
+				'\t} );',
+				'} );'
+			].join( '\n' );
+			
+			expect( converter.convertSetUpAndTearDown( input ) ).to.equal( expectedOutput );
+		} );
+		
+		
+		it( "should convert setUp() to Jasmine's `beforeEach()`, keeping the same indent level", function() {
+			var input = [
+				'\t\tsetUp : function() {',
+				'\t\t\tthis.proxy = new RestProxy( {',
+				'\t\t\t\turlRoot : "/testUrl"',
+				'\t\t\t\tappendId : false',
+				'\t\t\t} );',
+				'\t\t},'
+			].join( '\n' );
+			
+			var expectedOutput = [
+				'\t\tvar thisSuite = {};',
+				'',
+				'\t\tbeforeEach( function() {',
+				'\t\t\tthisSuite.proxy = new RestProxy( {',
+				'\t\t\t\turlRoot : "/testUrl"',
+				'\t\t\t\tappendId : false',
+				'\t\t\t} );',
+				'\t\t} );'
+			].join( '\n' );
+			
+			expect( converter.convertSetUpAndTearDown( input ) ).to.equal( expectedOutput );
+		} );
+		
+		
+		it( "should convert tearDown() to Jasmine's `afterEach()`, converting any `this` refs to `thisSuite`", function() {
+			var input = [
+				'tearDown : function() {',
+				'\tthis.proxy.destroy();',
+				'},'
+			].join( '\n' );
+			
+			var expectedOutput = [
+				'afterEach( function() {',
+				'\tthisSuite.proxy.destroy();',
+				'} );'
+			].join( '\n' );
+			
+			expect( converter.convertSetUpAndTearDown( input ) ).to.equal( expectedOutput );
+		} );
+		
+		
+		it( "should convert tearDown() to Jasmine's `afterEach()`, keeping the same indent level", function() {
+			var input = [
+				'\t\ttearDown : function() {',
+				'\t\t\tthis.proxy.destroy();',
+				'\t\t},'
+			].join( '\n' );
+			
+			var expectedOutput = [
+				'\t\tafterEach( function() {',
+				'\t\t\tthisSuite.proxy.destroy();',
+				'\t\t} );'
+			].join( '\n' );
+			
+			expect( converter.convertSetUpAndTearDown( input ) ).to.equal( expectedOutput );
 		} );
 		
 	} );
@@ -523,6 +602,27 @@ describe( "Converter", function() {
 				'\t} );',
 				'} );'
 			].join( "\n" ) );
+		} );
+		
+		
+		it( "should convert `this` references in tests to `thisSuite`", function() {
+			var input = [
+				'describe( "Test something()", function() {',
+				'\t"something should happen" : function() {',
+				'\t\tvar a = this.something;',
+				'\t}',
+				'} );'
+			].join( "\n" );
+			
+			var output = converter.convertTests( input );
+			expect( output ).to.equal( [
+				'describe( "Test something()", function() {',
+				'\tit( "something should happen", function() {',
+				'\t\tvar a = thisSuite.something;',
+				'\t} );',
+				'} );'
+			].join( "\n" ) );
+			
 		} );
 		
 	} );
@@ -1007,6 +1107,19 @@ describe( "Converter", function() {
 		it( "should convert JsMockito try/catch blocks in a file", function() {
 			var input = fs.readFileSync( __dirname + '/fixture/jsMockitoTests_input.js', 'utf8' ),
 			    expectedOutput = fs.readFileSync( __dirname + '/fixture/jsMockitoTests_expectedOutput.js', 'utf8' );
+			
+			// Strip all carriage returns off of the input and expected output. They needlessly get in the way.
+			input = input.replace( /\r/g, '' );
+			expectedOutput = expectedOutput.replace( /\r/g, '' );
+			
+			var convertedInput = converter.convert( input );
+			expect( convertedInput ).to.equal( expectedOutput );
+		} );
+	
+		
+		it( "should convert setUp() and tearDown() methods in a file", function() {
+			var input = fs.readFileSync( __dirname + '/fixture/setUpAndTearDown_input.js', 'utf8' ),
+			    expectedOutput = fs.readFileSync( __dirname + '/fixture/setUpAndTearDown_expectedOutput.js', 'utf8' );
 			
 			// Strip all carriage returns off of the input and expected output. They needlessly get in the way.
 			input = input.replace( /\r/g, '' );
