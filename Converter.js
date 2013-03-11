@@ -341,29 +341,9 @@ Converter.prototype = {
 			
 			switch( assertPkg ) {
 				case 'Assert' :
-					switch( assertFn ) {
-						case 'isTrue' : case 'isFalse' :
-							ret = "expect( " + args[ 0 ] + " ).toBe( " + ( assertFn === 'isTrue' ? 'true' : 'false' ) + " );";
-							errMsg = args[ 1 ];
-							break;
-							
-						case 'areSame' :
-							ret = "expect( " + args[ 1 ] + " ).toBe( " + args[ 0 ] + " );";
-							errMsg = args[ 2 ];
-							break;
-						
-						case 'areEqual' :
-							ret = "expect( " + args[ 1 ] + " ).toEqual( " + args[ 0 ] + " );";
-							errMsg = args[ 2 ];
-							break;
-							
-						case 'isInstanceOf' :
-							ret = "expect( " + args[ 1 ] + " instanceof " + args[ 0 ] + " ).toBe( true );";
-							errMsg = args[ 2 ];
-							break;
-							
-						case 'isObject' :
-							ret = "expect( _.isObject( " + args[ 0 ] + " ) ).toBe( true );";
+					switch( assertFn ) {							
+						case 'isUndefined' :
+							ret = "expect( _.isUndefined( " + args[ 0 ] + " ) ).toBe( true );";
 							errMsg = args[ 1 ];
 							break;
 						
@@ -375,6 +355,41 @@ Converter.prototype = {
 						case 'isNotNull' :
 							ret = "expect( " + args[ 0 ] + " ).not.toBe( null );";
 							errMsg = args[ 1 ];
+							break;
+							
+						case 'isTrue' : case 'isFalse' :
+							ret = "expect( " + args[ 0 ] + " ).toBe( " + ( assertFn === 'isTrue' ? 'true' : 'false' ) + " );";
+							errMsg = args[ 1 ];
+							break;
+							
+						case 'isString' :
+							ret = "expect( _.isString( " + args[ 0 ] + " ) ).toBe( true );";
+							errMsg = args[ 1 ];
+							break;
+							
+						case 'isObject' :
+							ret = "expect( _.isObject( " + args[ 0 ] + " ) ).toBe( true );";
+							errMsg = args[ 1 ];
+							break;
+							
+						case 'isArray' :
+							ret = "expect( _.isArray( " + args[ 0 ] + " ) ).toBe( true );";
+							errMsg = args[ 1 ];
+							break;
+							
+						case 'isInstanceOf' :
+							ret = "expect( " + args[ 1 ] + " instanceof " + args[ 0 ] + " ).toBe( true );";
+							errMsg = args[ 2 ];
+							break;
+							
+						case 'areSame' :
+							ret = "expect( " + args[ 1 ] + " ).toBe( " + args[ 0 ] + " );";
+							errMsg = args[ 2 ];
+							break;
+						
+						case 'areEqual' :
+							ret = "expect( " + args[ 1 ] + " ).toEqual( " + args[ 0 ] + " );";
+							errMsg = args[ 2 ];
 							break;
 							
 						case 'fail' :
