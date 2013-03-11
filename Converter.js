@@ -332,20 +332,18 @@ Converter.prototype = {
 		
 		var openBraceCount = 1,    // we're starting at the next char after the open brace, so we know we have one open brace
 		    currentCharIdx = idx + 1,  // start at the character after the open brace provided to the method
-		    inputStrLen = input.length,
-		    inLiteral = false,
-		    literalStartChar;
+		    inputStrLen = input.length;
 		
 		while( openBraceCount > 0 && currentCharIdx < inputStrLen ) {
 			var currentChar = input.charAt( currentCharIdx );
 			switch( currentChar ) {
 				case openBraceChar : 
-					if( !inLiteral ) openBraceCount++; 
+					openBraceCount++; 
 					break;
 				case closeBraceChar : 
-					if( !inLiteral ) openBraceCount--; 
+					openBraceCount--; 
 					break;
-				case "'" : case '"' : case '/' :   // last case is RegExp literal. Would be a problem if someone used the divide symbol in their code, but that's pretty rare for unit tests. Need to implement a bit more complex parsing if this is the case though.
+				case "'" : case '"' : case '/' :   // quote or RegExp literal. Would be a problem if someone used the divide symbol in their code, but that's pretty rare for unit tests. Need to implement a bit more complex parsing if this is the case though.
 					currentCharIdx = this.findMatchingClosingLiteral( input, currentCharIdx );  // skip over the string or RegExp literal
 			}
 			
