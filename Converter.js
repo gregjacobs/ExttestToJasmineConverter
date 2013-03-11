@@ -229,15 +229,7 @@ Converter.prototype = {
 		var me = this,  // for closure
 		    assertRe = /Y\.((?:\w+)?Assert)\.(\w+)\s*\(\s*([\s\S]*?)\s*\);/g;
 		
-		
-		//console.log( '-----------------------------------' );
-		//console.log( input.match( assertRe ) );
 		input = input.replace( assertRe, function( match, assertPkg, assertFn, argsStr ) {
-			//console.log( "match: " + match );
-			//console.log( "assertPkg: " + assertPkg );
-			//console.log( "assertFn: " + assertFn );
-			//console.log( "argsStr: " + argsStr );
-			
 			var args = me.parseArgsStr( argsStr ),
 			    ret,
 			    errMsg;
@@ -286,7 +278,61 @@ Converter.prototype = {
 					}
 					break;
 					
-				//case 'ArrayAssert' :
+					
+				case 'ArrayAssert' :
+					switch( assertFn ) {
+						case 'contains' :
+							ret = "expect( " + args[ 1 ] + " ).toContain( " + args[ 0 ] + " );";
+							errMsg = args[ 2 ];
+							break;
+							
+						case 'doesNotContain' :
+							ret = "expect( " + args[ 1 ] + " ).not.toContain( " + args[ 0 ] + " );";
+							errMsg = args[ 2 ];
+							break;
+						
+						case 'containsItems' :
+							ret = "expect( _.intersection( " + args[ 0 ] + ", " + args[ 1 ] + " ).length ).toBe( " + args[ 0 ] + ".length );";
+							errMsg = args[ 2 ];
+							break;
+							
+						case 'itemsAreSame' :
+							ret = "expect( " + args[ 1 ] + " ).toEqual( " + args[ 0 ] + " );";
+							errMsg = args[ 2 ];
+							break;
+							
+						case 'isEmpty' :
+							ret = "expect( " + args[ 0 ] + " ).toEqual( [] );";
+							errMsg = args[ 1 ];
+							break;
+							
+						default :
+							throw new Error( "Unknown function in YUI 'ArrayAssert' package: '" + assertFn + "'. Need to add a handler for it." );
+					}
+					break;
+					
+					
+				case 'ObjectAssert' :
+					switch( assertFn ) {
+						case 'hasKey' :
+							ret = "expect( " + args[ 1 ] + ".hasOwnProperty( " + args[ 0 ] + " ) ).toBe( true );";
+							errMsg = args[ 2 ];
+							break;
+						
+						case 'ownsKeys' : case 'hasKeys' :
+							// Reuse the parseArgsStr method to determine the array elements. Send it the inner contents of the array.
+							var arrayElements = me.parseArgsStr( args[ 0 ].substring( 1, args[ 0 ].length - 1 ) );
+							ret = "";
+							arrayElements.forEach( function( el ) {
+								ret += "expect( " + args[ 1 ] + ".hasOwnProperty( " + el + " ) ).toBe( true );";
+							} );
+							errMsg = args[ 2 ];
+							break;
+							
+						default :
+							throw new Error( "Unknown function in YUI 'ObjectAssert' package: '" + assertFn + "'. Need to add a handler for it." );
+					}
+					break;
 					
 				default :
 					throw new Error( "Unknown YUI assertion package: '" + assertPkg + "'. Need to add a handler for it." ); 
@@ -294,7 +340,7 @@ Converter.prototype = {
 			
 			// Append the YUI error message argument as a comment. Jasmine matchers do not take messages.
 			if( errMsg )
-				ret += "  // orig YUI err msg: " + errMsg;
+				ret += "  // orig YUI Test err msg: " + errMsg;
 			
 			return ret;
 		} );

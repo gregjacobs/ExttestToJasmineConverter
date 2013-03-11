@@ -394,81 +394,159 @@ describe( "Converter", function() {
 	
 	describe( "convertAssertions()", function() {
 		
-		it( "should properly convert Y.Assert.isTrue() assertions", function() {
-			expect( converter.convertAssertions( 'Y.Assert.isTrue( something );' ) )
-				.to.equal( 'expect( something ).toBe( true );' );
+		describe( "Y.Assert package assertions", function() {
+			it( "should properly convert Y.Assert.isTrue() assertions", function() {
+				expect( converter.convertAssertions( 'Y.Assert.isTrue( something );' ) )
+					.to.equal( 'expect( something ).toBe( true );' );
+				
+				expect( converter.convertAssertions( 'Y.Assert.isTrue( something, "something should have been true" );' ) )
+					.to.equal( 'expect( something ).toBe( true );  // orig YUI Test err msg: "something should have been true"' );
+			} );
 			
-			expect( converter.convertAssertions( 'Y.Assert.isTrue( something, "something should have been true" );' ) )
-				.to.equal( 'expect( something ).toBe( true );  // orig YUI err msg: "something should have been true"' );
+			
+			it( "should properly convert Y.Assert.isFalse() assertions", function() {
+				expect( converter.convertAssertions( 'Y.Assert.isFalse( something );' ) )
+					.to.equal( 'expect( something ).toBe( false );' );
+				
+				expect( converter.convertAssertions( 'Y.Assert.isFalse( something, "something should have been false" );' ) )
+					.to.equal( 'expect( something ).toBe( false );  // orig YUI Test err msg: "something should have been false"' );
+			} );
+			
+			
+			it( "should properly convert Y.Assert.areSame() assertions", function() {
+				expect( converter.convertAssertions( 'Y.Assert.areSame( something, somethingElse );' ) )
+					.to.equal( 'expect( somethingElse ).toBe( something );' );
+				
+				expect( converter.convertAssertions( 'Y.Assert.areSame( something, somethingElse, "something should have been somethingElse" );' ) )
+					.to.equal( 'expect( somethingElse ).toBe( something );  // orig YUI Test err msg: "something should have been somethingElse"' );
+			} );
+			
+			
+			it( "should properly convert Y.Assert.areEqual() assertions", function() {
+				expect( converter.convertAssertions( 'Y.Assert.areEqual( something, somethingElse );' ) )
+					.to.equal( 'expect( somethingElse ).toEqual( something );' );
+				
+				expect( converter.convertAssertions( 'Y.Assert.areEqual( something, somethingElse, "something should have been equal to somethingElse" );' ) )
+					.to.equal( 'expect( somethingElse ).toEqual( something );  // orig YUI Test err msg: "something should have been equal to somethingElse"' );
+			} );
+			
+			
+			it( "should properly convert Y.Assert.isInstanceOf() assertions", function() {
+				expect( converter.convertAssertions( 'Y.Assert.isInstanceOf( SomeClass, someVar );' ) )
+					.to.equal( 'expect( someVar instanceof SomeClass ).toBe( true );' );
+				
+				expect( converter.convertAssertions( 'Y.Assert.isInstanceOf( SomeClass, someVar, "someVar should have been an instance of SomeClass" );' ) )
+					.to.equal( 'expect( someVar instanceof SomeClass ).toBe( true );  // orig YUI Test err msg: "someVar should have been an instance of SomeClass"' );
+			} );
+			
+			
+			it( "should properly convert Y.Assert.isObject() assertions", function() {
+				expect( converter.convertAssertions( 'Y.Assert.isObject( someVar );' ) )
+					.to.equal( 'expect( _.isObject( someVar ) ).toBe( true );' );
+				
+				expect( converter.convertAssertions( 'Y.Assert.isObject( someVar, "someVar should have been an object" );' ) )
+					.to.equal( 'expect( _.isObject( someVar ) ).toBe( true );  // orig YUI Test err msg: "someVar should have been an object"' );
+			} );
+			
+			
+			it( "should properly convert Y.Assert.isNull() assertions", function() {
+				expect( converter.convertAssertions( 'Y.Assert.isNull( someVar );' ) )
+					.to.equal( 'expect( someVar ).toBe( null );' );
+				
+				expect( converter.convertAssertions( 'Y.Assert.isNull( someVar, "someVar should have been null" );' ) )
+					.to.equal( 'expect( someVar ).toBe( null );  // orig YUI Test err msg: "someVar should have been null"' );
+			} );
+			
+			
+			it( "should properly convert Y.Assert.isNotNull() assertions", function() {
+				expect( converter.convertAssertions( 'Y.Assert.isNotNull( someVar );' ) )
+					.to.equal( 'expect( someVar ).not.toBe( null );' );
+				
+				expect( converter.convertAssertions( 'Y.Assert.isNotNull( someVar, "someVar should have not been null" );' ) )
+					.to.equal( 'expect( someVar ).not.toBe( null );  // orig YUI Test err msg: "someVar should have not been null"' );
+			} );
+		
 		} );
 		
 		
-		it( "should properly convert Y.Assert.isFalse() assertions", function() {
-			expect( converter.convertAssertions( 'Y.Assert.isFalse( something );' ) )
-				.to.equal( 'expect( something ).toBe( false );' );
+		describe( "Y.ArrayAssert package assertions", function() {
 			
-			expect( converter.convertAssertions( 'Y.Assert.isFalse( something, "something should have been false" );' ) )
-				.to.equal( 'expect( something ).toBe( false );  // orig YUI err msg: "something should have been false"' );
+			it( "should properly convert Y.ArrayAssert.contains() assertions", function() {
+				expect( converter.convertAssertions( 'Y.ArrayAssert.contains( "myElem", elems );' ) )
+					.to.equal( 'expect( elems ).toContain( "myElem" );' );
+				
+				expect( converter.convertAssertions( 'Y.ArrayAssert.contains( "myElem", elems, "elems should contain myElem" );' ) )
+					.to.equal( 'expect( elems ).toContain( "myElem" );  // orig YUI Test err msg: "elems should contain myElem"' );
+			} );
+			
+			it( "should properly convert Y.ArrayAssert.doesNotContain() assertions", function() {
+				expect( converter.convertAssertions( 'Y.ArrayAssert.doesNotContain( "myElem", elems );' ) )
+					.to.equal( 'expect( elems ).not.toContain( "myElem" );' );
+				
+				expect( converter.convertAssertions( 'Y.ArrayAssert.doesNotContain( "myElem", elems, "elems should not contain myElem" );' ) )
+					.to.equal( 'expect( elems ).not.toContain( "myElem" );  // orig YUI Test err msg: "elems should not contain myElem"' );
+			} );
+			
+			
+			it( "should properly convert Y.ArrayAssert.containsItems() assertions", function() {
+				expect( converter.convertAssertions( 'Y.ArrayAssert.containsItems( [ "a", "b" ], elems );' ) )
+					.to.equal( 'expect( _.intersection( [ "a", "b" ], elems ).length ).toBe( [ "a", "b" ].length );' );
+				
+				expect( converter.convertAssertions( 'Y.ArrayAssert.containsItems( myEls, elems );' ) )
+					.to.equal( 'expect( _.intersection( myEls, elems ).length ).toBe( myEls.length );' );
+				
+				expect( converter.convertAssertions( 'Y.ArrayAssert.containsItems( [ "a", "b" ], elems, "elems should contain a and b" );' ) )
+					.to.equal( 'expect( _.intersection( [ "a", "b" ], elems ).length ).toBe( [ "a", "b" ].length );  // orig YUI Test err msg: "elems should contain a and b"' );
+			} );
+			
+			
+			it( "should properly convert Y.ArrayAssert.itemsAreSame() assertions", function() {
+				expect( converter.convertAssertions( 'Y.ArrayAssert.itemsAreSame( [ "attr1", "attr2" ], attrs );' ) )
+					.to.equal( 'expect( attrs ).toEqual( [ "attr1", "attr2" ] );' );
+				
+				expect( converter.convertAssertions( 'Y.ArrayAssert.itemsAreSame( [ "attr1", "attr2" ], attrs, "attrs should be attr1 and attr2" );' ) )
+					.to.equal( 'expect( attrs ).toEqual( [ "attr1", "attr2" ] );  // orig YUI Test err msg: "attrs should be attr1 and attr2"' );
+			} );
+			
+			
+			it( "should properly convert Y.ArrayAssert.isEmpty() assertions", function() {
+				expect( converter.convertAssertions( 'Y.ArrayAssert.isEmpty( attrs );' ) )
+					.to.equal( 'expect( attrs ).toEqual( [] );' );
+				
+				expect( converter.convertAssertions( 'Y.ArrayAssert.isEmpty( attrs, "attrs should be empty" );' ) )
+					.to.equal( 'expect( attrs ).toEqual( [] );  // orig YUI Test err msg: "attrs should be empty"' );
+			} );
+			
 		} );
 		
 		
-		it( "should properly convert Y.Assert.areSame() assertions", function() {
-			expect( converter.convertAssertions( 'Y.Assert.areSame( something, somethingElse );' ) )
-				.to.equal( 'expect( somethingElse ).toBe( something );' );
+		describe( "Y.ObjectAssert package assertions", function() {
 			
-			expect( converter.convertAssertions( 'Y.Assert.areSame( something, somethingElse, "something should have been somethingElse" );' ) )
-				.to.equal( 'expect( somethingElse ).toBe( something );  // orig YUI err msg: "something should have been somethingElse"' );
-		} );
-		
-		
-		it( "should properly convert Y.Assert.areEqual() assertions", function() {
-			expect( converter.convertAssertions( 'Y.Assert.areEqual( something, somethingElse );' ) )
-				.to.equal( 'expect( somethingElse ).toEqual( something );' );
+			it( "should properly convert Y.ObjectAssert.hasKey() assertions", function() {
+				expect( converter.convertAssertions( 'Y.ObjectAssert.hasKey( "attr1", data );' ) )
+					.to.equal( 'expect( data.hasOwnProperty( "attr1" ) ).toBe( true );' );
+				
+				expect( converter.convertAssertions( 'Y.ObjectAssert.hasKey( "attr1", data, "data should have attr1" );' ) )
+					.to.equal( 'expect( data.hasOwnProperty( "attr1" ) ).toBe( true );  // orig YUI Test err msg: "data should have attr1"' );
+			} );
 			
-			expect( converter.convertAssertions( 'Y.Assert.areEqual( something, somethingElse, "something should have been equal to somethingElse" );' ) )
-				.to.equal( 'expect( somethingElse ).toEqual( something );  // orig YUI err msg: "something should have been equal to somethingElse"' );
-		} );
-		
-		
-		it( "should properly convert Y.Assert.isInstanceOf() assertions", function() {
-			expect( converter.convertAssertions( 'Y.Assert.isInstanceOf( SomeClass, someVar );' ) )
-				.to.equal( 'expect( someVar instanceof SomeClass ).toBe( true );' );
+			it( "should properly convert Y.ObjectAssert.ownsKeys() assertions", function() {
+				expect( converter.convertAssertions( 'Y.ObjectAssert.ownsKeys( [ "attr1", "attr2" ], data );' ) )
+					.to.equal( 'expect( data.hasOwnProperty( "attr1" ) ).toBe( true );expect( data.hasOwnProperty( "attr2" ) ).toBe( true );' );
+				
+				expect( converter.convertAssertions( 'Y.ObjectAssert.ownsKeys( [ "attr1", "attr2" ], data, "data should have attr1 and attr2" );' ) )
+					.to.equal( 'expect( data.hasOwnProperty( "attr1" ) ).toBe( true );expect( data.hasOwnProperty( "attr2" ) ).toBe( true );  // orig YUI Test err msg: "data should have attr1 and attr2"' );
+			} );
 			
-			expect( converter.convertAssertions( 'Y.Assert.isInstanceOf( SomeClass, someVar, "someVar should have been an instance of SomeClass" );' ) )
-				.to.equal( 'expect( someVar instanceof SomeClass ).toBe( true );  // orig YUI err msg: "someVar should have been an instance of SomeClass"' );
-		} );
-		
-		
-		it( "should properly convert Y.Assert.isObject() assertions", function() {
-			expect( converter.convertAssertions( 'Y.Assert.isObject( someVar );' ) )
-				.to.equal( 'expect( _.isObject( someVar ) ).toBe( true );' );
+			it( "should properly convert Y.ObjectAssert.hasKeys() assertions", function() {
+				expect( converter.convertAssertions( 'Y.ObjectAssert.hasKeys( [ "attr1", "attr2" ], data );' ) )
+					.to.equal( 'expect( data.hasOwnProperty( "attr1" ) ).toBe( true );expect( data.hasOwnProperty( "attr2" ) ).toBe( true );' );
+				
+				expect( converter.convertAssertions( 'Y.ObjectAssert.hasKeys( [ "attr1", "attr2" ], data, "data should have attr1 and attr2" );' ) )
+					.to.equal( 'expect( data.hasOwnProperty( "attr1" ) ).toBe( true );expect( data.hasOwnProperty( "attr2" ) ).toBe( true );  // orig YUI Test err msg: "data should have attr1 and attr2"' );
+			} );
 			
-			expect( converter.convertAssertions( 'Y.Assert.isObject( someVar, "someVar should have been an object" );' ) )
-				.to.equal( 'expect( _.isObject( someVar ) ).toBe( true );  // orig YUI err msg: "someVar should have been an object"' );
 		} );
-		
-		
-		it( "should properly convert Y.Assert.isNull() assertions", function() {
-			expect( converter.convertAssertions( 'Y.Assert.isNull( someVar );' ) )
-				.to.equal( 'expect( someVar ).toBe( null );' );
-			
-			expect( converter.convertAssertions( 'Y.Assert.isNull( someVar, "someVar should have been null" );' ) )
-				.to.equal( 'expect( someVar ).toBe( null );  // orig YUI err msg: "someVar should have been null"' );
-		} );
-		
-		
-		it( "should properly convert Y.Assert.isNotNull() assertions", function() {
-			expect( converter.convertAssertions( 'Y.Assert.isNotNull( someVar );' ) )
-				.to.equal( 'expect( someVar ).not.toBe( null );' );
-			
-			expect( converter.convertAssertions( 'Y.Assert.isNotNull( someVar, "someVar should have not been null" );' ) )
-				.to.equal( 'expect( someVar ).not.toBe( null );  // orig YUI err msg: "someVar should have not been null"' );
-		} );
-		
-		
-		
-		
-		//Y.Assert.areSame( '/testUrl', proxy.buildUrl( 'create', 42 ), "buildUrl() should have returned the urlRoot when doing a 'create'" );
 		
 	} );
 	
