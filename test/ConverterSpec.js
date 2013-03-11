@@ -122,6 +122,105 @@ describe( "Converter", function() {
 	} );
 	
 	
+	describe( "removeTryCatchAroundJsMockito()", function() {
+		
+		it( "should remove a try/catch block for JsMockito", function() {
+			var input = [
+				'try {',
+				'\tJsMockito.verify( models[ 0 ] ).save();',
+				'\tJsMockito.verify( models[ 0 ], JsMockito.Verifiers.never() ).destroy();',
+				'\tJsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).save();',
+				'\tJsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).destroy();',
+				'} catch( e ) {',
+				'\tY.Assert.fail( typeof e === "string" ? e : e.message );',
+				'}'
+			].join( "\n" );
+			
+			var expected = [
+				'JsMockito.verify( models[ 0 ] ).save();',
+				'JsMockito.verify( models[ 0 ], JsMockito.Verifiers.never() ).destroy();',
+				'JsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).save();',
+				'JsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).destroy();'
+			].join( "\n" );
+			
+			expect( converter.removeTryCatchAroundJsMockito( input ) ).to.equal( expected );
+		} );
+		
+		
+		it( "should remove multiple try/catch blocks for JsMockito", function() {
+			var input = [
+				'try {',
+				'\tJsMockito.verify( models[ 0 ] ).save();',
+				'\tJsMockito.verify( models[ 0 ], JsMockito.Verifiers.never() ).destroy();',
+				'\tJsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).save();',
+				'\tJsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).destroy();',
+				'} catch( e ) {',
+				'\tY.Assert.fail( typeof e === "string" ? e : e.message );',
+				'}',
+				'// some other code here',
+				'try {',
+				'\tJsMockito.verify( models[ 0 ] ).save();',
+				'\tJsMockito.verify( models[ 0 ], JsMockito.Verifiers.never() ).destroy();',
+				'\tJsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).save();',
+				'\tJsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).destroy();',
+				'} catch( e ) {',
+				'\tY.Assert.fail( typeof e === "string" ? e : e.message );',
+				'}'
+			].join( "\n" );
+			
+			var expected = [
+				'JsMockito.verify( models[ 0 ] ).save();',
+				'JsMockito.verify( models[ 0 ], JsMockito.Verifiers.never() ).destroy();',
+				'JsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).save();',
+				'JsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).destroy();',
+				'// some other code here',
+				'JsMockito.verify( models[ 0 ] ).save();',
+				'JsMockito.verify( models[ 0 ], JsMockito.Verifiers.never() ).destroy();',
+				'JsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).save();',
+				'JsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).destroy();'
+			].join( "\n" );
+			
+			expect( converter.removeTryCatchAroundJsMockito( input ) ).to.equal( expected );
+		} );
+		
+		
+		it( "should leave non-JsMockito try/catch blocks alone", function() {
+			var input = [
+				'try {',
+				'\tJsMockito.verify( models[ 0 ] ).save();',
+				'\tJsMockito.verify( models[ 0 ], JsMockito.Verifiers.never() ).destroy();',
+				'\tJsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).save();',
+				'\tJsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).destroy();',
+				'} catch( e ) {',
+				'\tY.Assert.fail( typeof e === "string" ? e : e.message );',
+				'}',
+				'// some other code here',
+				'try {',
+				'\t// Some other test here',
+				'} catch( e ) {',
+				'\tY.Assert.fail( typeof e === "string" ? e : e.message );',
+				'}'
+			].join( "\n" );
+			
+			var expected = [
+				'JsMockito.verify( models[ 0 ] ).save();',
+				'JsMockito.verify( models[ 0 ], JsMockito.Verifiers.never() ).destroy();',
+				'JsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).save();',
+				'JsMockito.verify( models[ 1 ], JsMockito.Verifiers.never() ).destroy();',
+				'// some other code here',
+				'try {',
+				'\t// Some other test here',
+				'} catch( e ) {',
+				'\tY.Assert.fail( typeof e === "string" ? e : e.message );',
+				'}'
+			].join( "\n" );
+			
+			expect( converter.removeTryCatchAroundJsMockito( input ) ).to.equal( expected );
+		} );
+		
+	} );
+	
+	
 	
 	describe( "convertOuterSuite()", function() {
 		
@@ -549,6 +648,10 @@ describe( "Converter", function() {
 		} );
 		
 	} );
+	
+	
+	
+	// -----------------------------------
 	
 	
 	describe( "findMatchingClosingBrace()", function() {
