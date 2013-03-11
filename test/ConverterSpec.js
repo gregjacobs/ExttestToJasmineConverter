@@ -579,6 +579,26 @@ describe( "Converter", function() {
 		} );
 		
 		
+		it( "should find the correct matching curly brace in the face of JavaScript comments", function() {
+			var input = [
+				'{',
+				'\t/*',
+				'\t * Test something() }}}}}',
+				'\t */',
+				'\tname: "Test something()",',
+				'\t"something should happen" : function() {',
+				'\t\t// No really, something should happen here }}}}}}}}}}}',
+				'\t\tvar a = 1;',
+				'\t}',
+				'\t/* single line comment start in a multiline comment! }}}} // }}}}*/',
+				'}'
+			].join( "\n" );
+			
+			var closeBraceIdx = converter.findMatchingClosingBrace( input, 0 );
+			expect( closeBraceIdx ).to.equal( input.length - 1 );  // Last char in the input
+		} );
+		
+		
 		it( "should throw an error if the end of the string is reached before finding the matching end brace", function() {
 			var input = "[ 1, 2, 3";
 			
@@ -616,6 +636,91 @@ describe( "Converter", function() {
 		} );
 		
 	} );
+	
+	
+	describe( "findMatchingEndComment()", function() { 
+		
+		it( "should throw an error if the index provided was not a beginning comment sequence", function() {
+			expect( function() {
+				converter.findMatchingEndComment( "asdf", 0 );
+			} ).to.Throw( Error, "Character at idx 0 of input string was not an opening comment character. Found: `a` instead" );
+			
+			expect( function() {
+				// Starting with a slash, but not following with another slash or an asterisk
+				converter.findMatchingEndComment( "/sdf", 0 );
+			} ).to.Throw( Error, "Character at idx 0 of input string was not an opening comment character. Found: `/s` instead" );
+		} );
+		
+		
+		it( "should find the line break after a single line comment that starts at the beginning of a line", function() {
+			var input = [
+				'asdf\n',
+				'// hola\n',
+				'fdsa\n'
+			].join( "" );
+			
+			expect( converter.findMatchingEndComment( input, 5 ) ).to.equal( 12 );
+		} );
+		
+		
+		it( "should find the line break after a single line comment that doesn't start at the beginning of a line", function() {
+			var input = [
+				'asdf\n',
+				'qwer // hola\n',
+				'fdsa\n'
+			].join( "" );
+			
+			expect( converter.findMatchingEndComment( input, 10 ) ).to.equal( 17 );
+		} );
+		
+		
+		it( "should find the line break after a single line comment which has a multiline comment beginning sequence within it", function() {
+			var input = [
+				'asdf\n',
+				'// hola/*amigos \n',
+				'fdsa\n'
+			].join( "" );
+			
+			expect( converter.findMatchingEndComment( input, 5 ) ).to.equal( 21 );
+		} );
+		
+		
+		it( "should find the end of a multi-line comment which exists on a single line", function() {
+			var input = [
+				'asdf\n',
+				'/* hola */ amigos \n',
+				'fdsa\n'
+			].join( "" );
+			
+			expect( converter.findMatchingEndComment( input, 5 ) ).to.equal( 14 );
+		} );
+		
+		
+		it( "should find the end of a multi-line comment which exists on multiple lines", function() {
+			var input = [
+				'asdf\n',
+				'/* hola amigos \n',
+				'fd*/sa\n'
+			].join( "" );
+			
+			expect( converter.findMatchingEndComment( input, 5 ) ).to.equal( 24 );
+		} );
+		
+		
+		it( "should throw an error for a multi-line comment which doesn't have an end sequence", function() {
+			var input = [
+				'asdf\n',
+				'/* hola amigos \n',
+				'fdsa'
+			].join( "" );
+			
+			expect( function() {
+				converter.findMatchingEndComment( input, 5 );
+			} ).to.Throw( Error, "A match for the opening multi-line comment at index 5 was not found. End of input reached." );
+		} );
+		
+	} );
+	
 	
 	
 	describe( "parseArgsStr()", function() {

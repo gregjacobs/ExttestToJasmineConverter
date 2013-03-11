@@ -319,6 +319,10 @@ Converter.prototype = {
 	 * @throws {Error} If the end of the string is reached without finding the matching closing brace.
 	 */
 	findMatchingClosingBrace : function( input, idx ) {
+		if( typeof idx !== 'number' ) {
+			throw new Error( "'idx' arg required" );
+		}
+		
 		var openBraceChar = input.charAt( idx ),
 		    closeBraceChar;
 		
@@ -343,8 +347,20 @@ Converter.prototype = {
 				case closeBraceChar : 
 					openBraceCount--; 
 					break;
-				case "'" : case '"' : case '/' :   // quote or RegExp literal. Would be a problem if someone used the divide symbol in their code, but that's pretty rare for unit tests. Need to implement a bit more complex parsing if this is the case though.
-					currentCharIdx = this.findMatchingClosingLiteral( input, currentCharIdx );  // skip over the string or RegExp literal
+				
+				case '/' :
+					var nextChar = input.charAt( currentCharIdx + 1 );
+					if( nextChar === '/' || nextChar === '*' ) {  // comment
+						currentCharIdx = this.findMatchingEndComment( input, currentCharIdx );  // skip over the JS comment
+					} else {
+						// RegExp literal. Would be a problem if someone used the divide symbol in their code, but that's pretty rare 
+						// for unit tests. Need to implement a bit more complex parsing if this is the case though.
+						currentCharIdx = this.findMatchingClosingLiteral( input, currentCharIdx );  // skip over the RegExp
+					}
+					break;
+					
+				case "'" : case '"' :
+					currentCharIdx = this.findMatchingClosingLiteral( input, currentCharIdx );  // skip over the string
 			}
 			
 			// Break out of the loop if we've found the closing brace
@@ -378,11 +394,11 @@ Converter.prototype = {
 	 * @throws {Error} If the end of the string is reached without finding the matching closing brace.
 	 */
 	findMatchingClosingLiteral : function( input, idx ) {
-		var literalChar = input.charAt( idx );
-		
 		if( typeof idx !== 'number' ) {
 			throw new Error( "'idx' arg required" );
 		}
+		
+		var literalChar = input.charAt( idx );
 		if( literalChar !== "'" && literalChar !== '"' && literalChar !== '/' ) {
 			throw new Error( "Character at idx " + idx + " of input string was not an opening string or RegExp literal character. Found: `" + literalChar + "` instead" );
 		}
@@ -404,6 +420,54 @@ Converter.prototype = {
 		// If at this point, we didn't find the matching end literal char but the loop has terminated because we reached
 		// the end of the string, then throw an error
 		throw new Error( "A match for the opening literal char `" + literalChar + "` at index " + idx + " was not found. End of input reached." );
+	},
+	
+	
+	/**
+	 * Finds the end of a comment. The matching end character will either be a slash for a multi-line comment,
+	 * or a linebreak (\n) for a single line comment.
+	 * 
+	 * @param {String} input The input string.
+	 * @param {Number} idx The index of the beginning comment character in the input string. The character will be read,
+	 *   and then the input string will be walked until the matching end character is found. Handles `//`, and `/*` being
+	 *   at the index position provided to this argument.
+	 * @return {Number} The index of the matching end literal character in the `input` string.
+	 * @throws {Error} If the end of the string is reached without finding the matching closing brace.
+	 */
+	findMatchingEndComment : function( input, idx ) {
+		if( typeof idx !== 'number' ) {
+			throw new Error( "'idx' arg required" );
+		}
+		
+		var beginCommentChar = input.charAt( idx ),
+		    nextCommentChar = input.charAt( idx + 1 );
+		if( beginCommentChar !== "/" )
+			throw new Error( "Character at idx " + idx + " of input string was not an opening comment character. Found: `" + beginCommentChar + "` instead" );
+		if( nextCommentChar !== '/' && nextCommentChar !== '*' )
+			throw new Error( "Character at idx " + idx + " of input string was not an opening comment character. Found: `" + beginCommentChar + nextCommentChar + "` instead" );
+		
+		var inputStrLen = input.length,
+		    currentCharIdx = idx + 1,
+		    currentChar;
+		
+		if( nextCommentChar === '/' ) {
+			// single line comment
+			while( ( currentChar = input.charAt( currentCharIdx ) ) !== '\n' ) {
+				currentCharIdx++;
+			}
+			return currentCharIdx;
+			
+		} else {
+			// multi-line comment
+			while( currentCharIdx < inputStrLen ) {
+				currentChar = input.charAt( currentCharIdx );
+				if( currentChar === '*' && input.charAt( currentCharIdx + 1 ) === '/' ) { 
+					return currentCharIdx + 1;
+				}
+				currentCharIdx++;
+			}
+			throw new Error( "A match for the opening multi-line comment at index " + idx + " was not found. End of input reached." );
+		}
 	},
 	
 	
