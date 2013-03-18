@@ -1,11 +1,9 @@
-/*global module */
+/*global require, module */
 /*jshint boss:true */
-var Converter = function() {
-	
-};
+var Class = require( './Class' ),
+    Parser = require( './Parser' );
 
-Converter.prototype = {
-	constructor : Converter,  // fix constructor property
+var Converter = Class.extend( Object, {
 	
 	/**
 	 * Performs the full conversion, applying all transformations.
@@ -27,6 +25,17 @@ Converter.prototype = {
 		str = this.convertAssertions( str );
 		
 		return str;
+	},
+	
+	
+	/**
+	 * Parses the `input` into a tree of {@link node.Node Nodes}.
+	 * 
+	 * @param {String} input
+	 * @return {node.Node} The root of the parsed tree.
+	 */
+	parse : function( input ) {
+		return new Parser( input ).parse();
 	},
 	
 	
@@ -479,171 +488,6 @@ Converter.prototype = {
 	
 	
 	/**
-	 * Utility method used to find the matching closing brace of an opening brace in a string of JavaScript code.
-	 * Matches `{}`, `[]`, and `()`.
-	 * 
-	 * @protected
-	 * @param {String} input The input string.
-	 * @param {Number} idx The index of the brace character in the input string. The brace character will be read,
-	 *   and then the input string will be walked until the matching end brace is found. Handles '{' and '[' being
-	 *   at the index position provided to this argument.
-	 * @return {Number} The index of the matching end brace in the `input` string.
-	 * @throws {Error} If the end of the string is reached without finding the matching closing brace.
-	 */
-	findMatchingClosingBrace : function( input, idx ) {
-		if( typeof idx !== 'number' ) {
-			throw new Error( "'idx' arg required" );
-		}
-		
-		var openBraceChar = input.charAt( idx ),
-		    closeBraceChar;
-		
-		switch( openBraceChar ) {
-			case '{' : closeBraceChar = '}'; break;
-			case '[' : closeBraceChar = ']'; break;
-			case '(' : closeBraceChar = ')'; break;
-			default : 
-				throw new Error( "Character at idx " + idx + " of input string was not an open brace. Found: '" + openBraceChar + "' instead" );
-		}
-		
-		var openBraceCount = 1,    // we're starting at the next char after the open brace, so we know we have one open brace
-		    currentCharIdx = idx + 1,  // start at the character after the open brace provided to the method
-		    inputStrLen = input.length;
-		
-		while( openBraceCount > 0 && currentCharIdx < inputStrLen ) {
-			var currentChar = input.charAt( currentCharIdx );
-			switch( currentChar ) {
-				case openBraceChar : 
-					openBraceCount++; 
-					break;
-				case closeBraceChar : 
-					openBraceCount--; 
-					break;
-				
-				case '/' :
-					var nextChar = input.charAt( currentCharIdx + 1 );
-					if( nextChar === '/' || nextChar === '*' ) {  // comment
-						currentCharIdx = this.findMatchingEndComment( input, currentCharIdx );  // skip over the JS comment
-					} else {
-						// RegExp literal. Would be a problem if someone used the divide symbol in their code, but that's pretty rare 
-						// for unit tests. Need to implement a bit more complex parsing if this is the case though.
-						currentCharIdx = this.findMatchingClosingLiteral( input, currentCharIdx );  // skip over the RegExp
-					}
-					break;
-					
-				case "'" : case '"' :
-					currentCharIdx = this.findMatchingClosingLiteral( input, currentCharIdx );  // skip over the string
-			}
-			
-			// Break out of the loop if we've found the closing brace
-			if( openBraceCount === 0 ) {
-				break;
-			}
-			currentCharIdx++;
-		}
-		
-		// If at this point, we didn't find the matching end brace but the loop has terminated because we reached
-		// the end of the string, then throw an error
-		if( openBraceCount > 0 ) {
-			throw new Error( "A match for the opening brace '" + openBraceChar + "' at index " + idx + " was not found. End of input reached." );
-		} else {
-			return currentCharIdx;
-		}
-	},
-	
-	
-	
-	/**
-	 * Similar to {@link #findMatchingClosingBrace}, this method finds the matching closing token which
-	 * ends a string or RegExp literal.
-	 * 
-	 * @protected
-	 * @param {String} input The input string.
-	 * @param {Number} idx The index of the string or RegExp literal character in the input string. The character will be read,
-	 *   and then the input string will be walked until the matching end character is found. Handles `'`, `"`, and `/` being
-	 *   at the index position provided to this argument.
-	 * @return {Number} The index of the matching end literal character in the `input` string.
-	 * @throws {Error} If the end of the string is reached without finding the matching closing brace.
-	 */
-	findMatchingClosingLiteral : function( input, idx ) {
-		if( typeof idx !== 'number' ) {
-			throw new Error( "'idx' arg required" );
-		}
-		
-		var literalChar = input.charAt( idx );
-		if( literalChar !== "'" && literalChar !== '"' && literalChar !== '/' ) {
-			throw new Error( "Character at idx " + idx + " of input string was not an opening string or RegExp literal character. Found: `" + literalChar + "` instead" );
-		}
-		
-		var currentCharIdx = idx + 1,  // start at the character after the open literal char provided to the method
-		    inputStrLen = input.length;
-		
-		while( currentCharIdx < inputStrLen ) {
-			var currentChar = input.charAt( currentCharIdx );
-			if( currentChar === literalChar && input.charAt( currentCharIdx - 1 ) !== '\\' ) {
-				// If the current character is the matching literal end character, and the char before it
-				// is not the escape char....
-				return currentCharIdx;
-			}
-			
-			currentCharIdx++;
-		}
-		
-		// If at this point, we didn't find the matching end literal char but the loop has terminated because we reached
-		// the end of the string, then throw an error
-		throw new Error( "A match for the opening literal char `" + literalChar + "` at index " + idx + " was not found. End of input reached." );
-	},
-	
-	
-	/**
-	 * Finds the end of a comment. The matching end character will either be a slash for a multi-line comment,
-	 * or a linebreak (\n) for a single line comment.
-	 * 
-	 * @param {String} input The input string.
-	 * @param {Number} idx The index of the beginning comment character in the input string. The character will be read,
-	 *   and then the input string will be walked until the matching end character is found. Handles `//`, and `/*` being
-	 *   at the index position provided to this argument.
-	 * @return {Number} The index of the matching end literal character in the `input` string.
-	 * @throws {Error} If the end of the string is reached without finding the matching closing brace.
-	 */
-	findMatchingEndComment : function( input, idx ) {
-		if( typeof idx !== 'number' ) {
-			throw new Error( "'idx' arg required" );
-		}
-		
-		var beginCommentChar = input.charAt( idx ),
-		    nextCommentChar = input.charAt( idx + 1 );
-		if( beginCommentChar !== "/" )
-			throw new Error( "Character at idx " + idx + " of input string was not an opening comment character. Found: `" + beginCommentChar + "` instead" );
-		if( nextCommentChar !== '/' && nextCommentChar !== '*' )
-			throw new Error( "Character at idx " + idx + " of input string was not an opening comment character. Found: `" + beginCommentChar + nextCommentChar + "` instead" );
-		
-		var inputStrLen = input.length,
-		    currentCharIdx = idx + 1,
-		    currentChar;
-		
-		if( nextCommentChar === '/' ) {
-			// single line comment
-			while( ( currentChar = input.charAt( currentCharIdx ) ) !== '\n' ) {
-				currentCharIdx++;
-			}
-			return currentCharIdx;
-			
-		} else {
-			// multi-line comment
-			while( currentCharIdx < inputStrLen ) {
-				currentChar = input.charAt( currentCharIdx );
-				if( currentChar === '*' && input.charAt( currentCharIdx + 1 ) === '/' ) { 
-					return currentCharIdx + 1;
-				}
-				currentCharIdx++;
-			}
-			throw new Error( "A match for the opening multi-line comment at index " + idx + " was not found. End of input reached." );
-		}
-	},
-	
-	
-	/**
 	 * Utility method used to replace a matching closing curly brace that was used in the object literal form
 	 * for Ext.Test of either `}` or `},`, to the end function + call brace `} );`
 	 * 
@@ -666,57 +510,8 @@ Converter.prototype = {
 		input = input.substring( 0, closingBraceIdx ) + '} );' + input.substring( closingBraceIdx + closingBraceLen );
 		
 		return input;  // converted input
-	},
-	
-	
-	/**
-	 * Utility method used to parse out the arguments expressions provided to an assertion call. Regex's alone
-	 * are not capable of doing this when it comes to nested function calls in the expressions, as well as for
-	 * object / array literals.
-	 * 
-	 * @protected
-	 * @param {String} argsStr The string of input that lies between parenthesis in a function call. 
-	 *   Ex: "arg1, arg2, fn( 3, 4 ), [ arg4, arg5 ], { a: arg6, b: arg7 }, arg8"
-	 * @return {String[]} Each of the function expressions in an array, one element for each argument.
-	 */
-	parseArgsStr : function( argsStr ) {
-		// Simple parser to parse what is between the "root level" commas
-		var startIdx = 0,
-		    currentIdx = 0,
-		    argsStrLen = argsStr.length,
-		    args = [],
-		    arg;
-		
-		while( currentIdx < argsStrLen ) {
-			var currentChar = argsStr.charAt( currentIdx );
-			
-			// Skip over braces and string/regexp literals
-			if( currentChar === '{' || currentChar === '[' || currentChar === '(' ) {
-				currentIdx = this.findMatchingClosingBrace( argsStr, currentIdx ) + 1;  // advance the currentIdx one char past the matching closing brace
-				currentChar = argsStr.charAt( currentIdx );
-			} else if( currentChar === "'" || currentChar === '"' || currentChar === '/' ) {
-				currentIdx = this.findMatchingClosingLiteral( argsStr, currentIdx ) + 1;  // advance the currentIdx one char past the matching end literal char
-				currentChar = argsStr.charAt( currentIdx );
-			}
-			
-			if( currentChar === ',' ) {   // a comma
-				args.push( argsStr.substring( startIdx, currentIdx ) );
-				
-				currentIdx++;           // advance past the comma
-				startIdx = currentIdx;  // mark the starting position of the next argument
-			
-			} else if( currentIdx >= argsStrLen - 1 ) {  // last char in the string
-				args.push( argsStr.substring( startIdx, argsStrLen ) );				
-				break;
-				
-			} else {
-				currentIdx++;
-			}
-		}
-		
-		return args.map( function( el ) { return el.trim(); } );  // trim any spaces off each element before returning
 	}
 
-};
+} );
 
 module.exports = Converter;
