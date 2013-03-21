@@ -1,4 +1,5 @@
 /*global require, __dirname, describe, xdescribe, beforeEach, afterEach, it, xit */
+/*jshint sub:true */
 var expect       = require( 'chai' ).expect,
     fs           = require( 'fs' ),
     Parser       = require( '../src/Parser' ),
@@ -338,11 +339,8 @@ describe( "Parser", function() {
 				'    name: "TheClass",',
 				'    items : [',
 				'        {',
-				'            name  : "method() test case",',
-				'            ttype : "suite",',
-				'            "something should happen" : function() {',
-				'                var a = 1;',
-				'            }',
+				'            name  : "method() suite",',
+				'            ttype : "suite"',
 				'        }',
 				'    ]',
 				'} ) );'
@@ -356,8 +354,40 @@ describe( "Parser", function() {
 			
 			var suite = parser.parseSuite();
 			expect( suite ).to.be.instanceOf( SuiteNode );
-			expect( suite.getName() ).to.equal( "method() test case" );
+			expect( suite.getName() ).to.equal( "method() suite" );
 		} );
+		
+		
+		it( "should return a Suite with nested TestCases", function() {
+			var input = [
+				'{',
+				'    name  : "method() suite",',
+				'    ttype : "suite",',
+				'    items : [',
+				'        {',
+				'            /*',
+				'             * Test the getAttributes() static method',
+				'             */',
+				'            name : "Test some() method"',
+				'        },',
+				'        {',
+				'            /*',
+				'             * Test the getAttributes() static method 2',
+				'             */',
+				'            name : "Test someOther() method"',
+				'        }',
+				'    ]',
+				'}'
+			].join( '\n' );
+			
+			var parser = new Parser( input ),
+			    suiteNode = parser.parseSuite();
+			
+			expect( suiteNode ).to.not.equal( null );
+			expect( suiteNode.getName() ).to.equal( "method() suite" );
+			expect( suiteNode.getChildren().length ).to.equal( 2 );
+		} );
+		
 		
 		
 		it( "should return null when there is not a suite node at the current character position", function() {
@@ -398,27 +428,136 @@ describe( "Parser", function() {
 	
 	describe( "parseTestCase()", function() {
 		
-		it( "should parse a single TestCase starting at the current character read position", function() {
+		it( "should parse a single TestCase, with all entities", function() {
+			var input = [
+				'{',
+				'    /*',
+				'     * Test the getAttributes() static method',
+				'     */',
+				'    name : "Test some() method",',
+				'    ',
+				'    setUp : function() {',
+				'        this.a = 1;',
+				'        this.b = 1;',
+				'    },',
+				'    ',
+				'    tearDown : function() {',
+				'        this.a.destroy();',
+				'        this.b.destroy();',
+				'    },',
+				'    ',
+				'    _should : {',
+				'        ignore : {',
+				'            "test_something" : true,',
+				'            "something should happen" : true',
+				'        },',
+				'        error : {',
+				'            "test_somethingElse" : "some error",',
+				'            "something else should happen" : ',
+				'                "some super-long error message"',
+				'        }',
+				'    },',
+				'    ',
+				'    ',
+				'    "something should happen" : function() {',
+				'        Y.Assert.areSame( 1, 1 );',
+				'    },',
+				'    ',
+				'    "something else should happen" : function() {',
+				'        Y.Assert.areSame( 1, 2 );',
+				'    },',
+				'    ',
+				'    test_something : function() {',
+				'        Y.Assert.areSame( 1, 3 );',
+				'    },',
+				'    ',
+				'    test_somethingElse : function() {',
+				'        Y.Assert.areSame( 1, 4 );',
+				'    }',
+				'    ',
+				'    "something worthy of mordor should happen" : function() {',
+				'        Y.Assert.areSame( 1, 5 );',
+				'    }',
+				'}'
+			].join( "\n" );
 			
+			var parser = new Parser( input ),
+			    testCaseNode = parser.parseTestCase();
+			
+			expect( testCaseNode.getName() ).to.equal( "Test some() method" );
+			
+			expect( testCaseNode.getSetUp() ).to.not.equal( null );
+			expect( testCaseNode.getSetUp().getBody() ).to.match( /this\.a = 1;/ );
+			expect( testCaseNode.getSetUp().getBody() ).to.match( /this\.b = 1;/ );
+			
+			expect( testCaseNode.getTearDown() ).to.not.equal( null );
+			expect( testCaseNode.getTearDown().getBody() ).to.match( /this\.a\.destroy\(\);/ );
+			expect( testCaseNode.getTearDown().getBody() ).to.match( /this\.b\.destroy\(\);/ );
+			
+			// "Should" rules assertions
+			var should = testCaseNode.getShould();
+			expect( should ).to.not.equal( null );
+			expect( should.getIgnoredTests() ).to.not.equal( null );
+			expect( should.getIgnoredTests()[ 'test_something' ] ).to.equal( true );
+			expect( should.getIgnoredTests()[ 'something should happen' ] ).to.equal( true );
+			expect( should.getErrorTests()[ 'test_somethingElse' ] ).to.equal( "some error" );
+			expect( should.getErrorTests()[ 'something else should happen' ] ).to.equal( "some super-long error message" );
+			
+			// Tests Assertions
+			var tests = testCaseNode.getTests();
+			expect( tests.length ).to.equal( 5 );
+			expect( tests[ 0 ].getName() ).to.equal( "something should happen" );
+			expect( tests[ 1 ].getName() ).to.equal( "something else should happen" );
+			expect( tests[ 2 ].getName() ).to.equal( "something" );
+			expect( tests[ 3 ].getName() ).to.equal( "somethingElse" );
+			expect( tests[ 4 ].getName() ).to.equal( "something worthy of mordor should happen" );
+			
+			expect( parser.currentPos ).to.equal( input.length );  // currentPos should have been advanced to past the TestCase
+		} );
+		
+		
+		it( "should parse a single TestCase, with no entities", function() {
+			var input = [
+				'{',
+				'    /*',
+				'     * Test the getAttributes() static method',
+				'     */',
+				'    name : "Test some() method"',
+				'    ',
+				'}'
+			].join( "\n" );
+			
+			var parser = new Parser( input ),
+			    testCaseNode = parser.parseTestCase();
+			
+			expect( testCaseNode.getName() ).to.equal( "Test some() method" );
+			expect( testCaseNode.getSetUp() ).to.equal( null );
+			expect( testCaseNode.getTearDown() ).to.equal( null );
+			expect( testCaseNode.getShould() ).to.equal( null );
+			expect( testCaseNode.getTests().length ).to.equal( 0 );
+			
+			expect( parser.currentPos ).to.equal( input.length );  // currentPos should have been advanced to past the TestCase 
 		} );
 		
 		
 		it( "should return null if a TestCase was not found at the current character read position", function() {
+			var input = [
+				'{',
+				'    /*',
+				'     * Test the some() method',
+				'     */',
+				'    name : "Test some() method"',
+				'    ',
+				'}'
+			].join( "\n" );
+			console.log( input.indexOf( 'Test' ) );
 			
-		} );
-		
-	} );
-	
-	
-	describe( "parseTest()", function() {
-		
-		it( "should parse a single Test starting at the current character read position", function() {
+			var parser = new Parser( input );
+			parser.currentPos = 16;  // The word "Test" in the comment block
 			
-		} );
-		
-		
-		it( "should return null if a Test was not found at the current character read position", function() {
-			
+			expect( parser.parseTestCase() ).to.equal( null );
+			console.log( parser.currentPos );
+			expect( parser.currentPos ).to.equal( 16 );  // currentPos should not have been advanced
 		} );
 		
 	} );
@@ -441,11 +580,11 @@ describe( "Parser", function() {
 				'},'
 			].join( "\n" );
 			
-			var parser = new Parser( input );
-			var shouldNode = parser.parseShould();
+			var parser = new Parser( input ),
+			    shouldNode = parser.parseShould();
 			
 			expect( shouldNode ).to.be.instanceOf( ShouldNode );
-			expect( shouldNode.getShouldErrorTests() ).to.deep.equal( {
+			expect( shouldNode.getErrorTests() ).to.deep.equal( {
 				test_something : "some error",
 				"something should do something else" : "some super-long error message"
 			} );
@@ -635,6 +774,32 @@ describe( "Parser", function() {
 			var testNode = parser.parseTest();  // should return null - there's a "_should" block at the starting position
 			
 			expect( testNode ).to.equal( null );
+		} );
+		
+	} );
+	
+	
+	
+	describe( "parseObjectLiteral()", function() {
+		
+		it( "should return the object defined by the literal", function() {
+			var input = "{ a: 1, b: 'asdf' }";
+			
+			var parser = new Parser( input );
+			parser.currentPos = 0;  // just to be clear
+			
+			expect( parser.parseObjectLiteral() ).to.deep.equal( { a: 1, b: 'asdf' } );
+			expect( parser.currentPos ).to.equal( 19 );  // currentPos should have been advanced
+		} );
+		
+		
+		it( "should return null if the character at the currentPos is not the start of an object literal", function() {
+			var input = "abcdefg { a: 1, b: 'asdf' }";
+			
+			var parser = new Parser( input );
+			parser.currentPos = 0;  // just to be clear
+			
+			expect( parser.parseObjectLiteral() ).to.equal( null );
 		} );
 		
 	} );

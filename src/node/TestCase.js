@@ -26,6 +26,56 @@ var TestCaseNode = Node.extend( {
 		this.tearDown = tearDown;
 		this.should = should;
 		this.tests = tests;
+	},
+	
+	
+	/**
+	 * Retrieves the name.
+	 * 
+	 * @return {String}
+	 */
+	getName : function() {
+		return this.name;
+	},
+	
+	
+	/**
+	 * Retrieves the SetUp node (if there is one).
+	 * 
+	 * @return {node.SetUp} The SetUp node, or null if there was no setUp() method.
+	 */
+	getSetUp : function() {
+		return this.setUp;
+	},
+	
+	
+	/**
+	 * Retrieves the TearDown node (if there is one).
+	 * 
+	 * @return {node.TearDown} The TearDown node, or null if there was no tearDown() method.
+	 */
+	getTearDown : function() {
+		return this.tearDown;
+	},
+	
+	
+	/**
+	 * Retrieves the Should node (if there is one).
+	 * 
+	 * @return {node.Should} The Should node, or null if there was no _should object.
+	 */
+	getShould : function() {
+		return this.should;
+	},
+	
+	
+	/**
+	 * Retrieves the Test nodes.
+	 * 
+	 * @return {node.Test[]} The array of Test nodes, one for each test method.
+	 */
+	getTests : function() {
+		return this.tests;
 	}
 	
 } );

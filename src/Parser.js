@@ -1,5 +1,5 @@
 /*global require, module */
-/*jshint boss:true */
+/*jshint boss:true, evil:true */
 var Class = require( './Class' ),
     SuiteNode    = require( './node/Suite' ),
     TestCaseNode = require( './node/TestCase' ),
@@ -270,7 +270,7 @@ var Parser = Class.extend( Object, {
 	 * 
 	 * 1. The Suite name.
 	 */
-	suiteRe : /\{\s*(?:\/\*[\s\S]*?\*\/)?\s*name\s*:\s*['"](.*?)['"],\s*?ttype.*?,/g,
+	suiteRe : /\{\s*(?:\/\*[\s\S]*?\*\/)?\s*name\s*:\s*['"](.*?)['"],\s*?ttype.*?,?/g,
 	
 	/**
 	 * @protected
@@ -283,7 +283,7 @@ var Parser = Class.extend( Object, {
 	 * 
 	 * 1. The TestCase name.
 	 */
-	testCaseRe : /\{\s*(?:\/\*[\s\S]*?\*\/)?\s*name\s*:\s*['"](.*?)['"],(?!\s*?ttype)/g,
+	testCaseRe : /\{\s*(?:\/\*[\s\S]*?\*\/)?\s*name\s*:\s*['"](.*?)['"],?(?!\s*?ttype)/g,
 	
 	
 	/**
@@ -400,7 +400,7 @@ var Parser = Class.extend( Object, {
 			var children = [];
 			
 			
-			outerSuiteNode = new SuiteNode( suiteName );
+			outerSuiteNode = new SuiteNode( suiteName, children );
 		}
 		
 		return outerSuiteNode;
@@ -427,7 +427,7 @@ var Parser = Class.extend( Object, {
 			var children = [];
 			
 			
-			suiteNode = new SuiteNode( suiteName );
+			suiteNode = new SuiteNode( suiteName, children );
 		}
 		
 		return suiteNode;
@@ -458,6 +458,27 @@ var Parser = Class.extend( Object, {
 			    shouldNode = null,
 			    tests = [];
 			
+			while( this.peekChar() !== '}' ) {
+				var obj = null;
+				if( obj = this.parseSetUp() ) {
+					setUpNode = obj;
+				} else if( obj = this.parseTearDown() ) {
+					tearDownNode = obj;
+				} else if( obj = this.parseShould() ) {
+					shouldNode = obj;
+				} else if( obj = this.parseTest() ) {
+					tests.push( obj );
+				}
+				
+				if( this.peekChar() === ',' )
+					this.currentPos++;  // advanced past the comma, if there is one
+				this.skipWhitespace();
+			}
+			
+			if( this.peekChar() !== '}' ) {
+				throw new Error( "Expected closing brace '}' for the end of a TestCase, but found " + this.peekChar() + " instead." );
+			}
+			this.currentPos++;  // advanced past the closing brace '}'
 			
 			testCaseNode = new TestCaseNode( name, setUpNode, tearDownNode, shouldNode, tests );
 		}
@@ -479,65 +500,16 @@ var Parser = Class.extend( Object, {
 		    shouldNode = null;
 		
 		if( shouldMatch !== null ) {  // if there's a "should" block match at the current position
-			this.currentPos = shouldMatch.index + shouldMatch[ 0 ].length;  // advance current position to inside the _should object
+			this.currentPos = shouldMatch.index + shouldMatch[ 0 ].length - 1;  // advance current position to the open brace that starts the _should object
+			
+			var shouldObj = this.parseObjectLiteral();
+			
 			this.skipWhitespace();
-			
-			
-			var errorMap,
-			    ignoreMap,
-			    errorMatch, 
-			    ignoreMatch;
-			
-			while( ( errorMatch = this.getMatch( this.shouldErrorRe ) ) || ( ignoreMatch = this.getMatch( this.shouldIgnoreRe ) ) ) {
-				this.currentPos += ( errorMatch || ignoreMatch )[ 0 ].length;
-				this.skipWhitespace();
-				
-				var key, value, map = {};
-				while( key = ( this.parseStringLiteral() || this.parseIdentifier() ) ) {
-					this.skipWhitespace();
-					if( this.peekChar() !== ':' )
-						throw new Error( "Was looking for ':' and found '" + this.peekChar() + "' (at position " + this.currentPos + ")" );
-					this.currentPos++;  // advance past the ':'
-					this.skipWhitespace();
-					
-					value = this.parseStringLiteral() || this.parseBooleanLiteral() || this.parseIdentifier();
-					map[ key ] = value;
-					
-					this.skipWhitespace();
-					if( this.peekChar() === ',' ) {
-						this.currentPos++;  // skip over the comma
-					} else if( this.peekChar() === '}' ) {
-						this.currentPos++;  // skip over the '}'
-						break;
-					} else {
-						throw new Error( "Was looking for '}' and found '" + this.peekChar() + "' (at position " + this.currentPos + "). A line with: " + input.substring( this.currentPos - 15, this.currentPos + 15 ) );
-					}
-					this.skipWhitespace();
-				}
-				
-				this.skipWhitespace();
-				if( this.peekChar() === ',' )
-					this.currentPos++;  // skip over the comma for the object literal holding an 'error' or 'ignore' object
-				this.skipWhitespace();
-				
-				if( errorMatch )
-					errorMap = map;
-				else if( ignoreMatch )
-					ignoreMap = map;
-				
-				errorMatch = ignoreMatch = null;  // reset them, so we know which one matched on the next loop iteration
-			}
-			
-			if( input.charAt( this.currentPos ) !== '}' )
-				throw new Error( "Expected '}' to end the _should block at char " + this.currentPos + ". Found '" + input.charAt( this.currentPos ) + "' instead." );
-			
-			this.currentPos++;  // advance past the }
-			this.skipWhitespace();
-			
-			if( input.charAt( this.currentPos ) === ',' )
+			if( this.peekChar() === ',' )
 				this.currentPos++;  // advanced past the comma, if there is one
 			
-			shouldNode = new ShouldNode( ignoreMap, errorMap );
+			
+			shouldNode = new ShouldNode( shouldObj.ignore, shouldObj.error );
 		}
 		return shouldNode;
 	},
@@ -634,6 +606,28 @@ var Parser = Class.extend( Object, {
 	// ------------------------------------
 	
 	// Utility Parsing Methods
+	
+	/**
+	 * Parses an Object literal. The values must be literals though; no identifiers.
+	 * This is mainly just to parse the `_should` objects from TestCases.
+	 * 
+	 * @return {Object} The Object literal that was parsed. Returns null if an object
+	 *  did not start at the {@link #currentPos}.
+	 */
+	parseObjectLiteral : function() {
+		var input = this.input,
+		    currentPos = this.currentPos;
+		
+		if( this.peekChar() === '{' ) {  // character at the current position is an open brace
+			var closingBraceIdx = Parser.findMatchingClosingBrace( input, currentPos ),
+			    objLiteralSrc = input.substring( currentPos, closingBraceIdx + 1 ),  // include the end brace with the +1
+			    obj = eval( '(' + objLiteralSrc + ')' );
+			
+			this.currentPos = closingBraceIdx + 1;  // advance the currentPos
+			return obj;
+		}
+		return null;
+	},
 	
 	
 	/**

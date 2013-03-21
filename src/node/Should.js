@@ -14,12 +14,12 @@ var ShouldNode = Node.extend( {
 	 * @constructor
 	 * @param {Object} ignoredTests A map of ignored tests. The keys are the test names,
 	 *   and the values are always `true`. (Really this is a Set more-so than a Map.)
-	 * @param {Object} shouldErrorTests An map of tests that should error. The keys
+	 * @param {Object} errorTests An map of tests that should error. The keys
 	 *   are the test names, and the values are the error messages that are expected.
 	 */
-	constructor : function( ignoredTests, shouldErrorTests ) {
+	constructor : function( ignoredTests, errorTests ) {
 		this.ignoredTests = ignoredTests || {};
-		this.shouldErrorTests = shouldErrorTests || {};
+		this.errorTests = errorTests || {};
 	},
 	
 	
@@ -40,8 +40,8 @@ var ShouldNode = Node.extend( {
 	 * @return {Object} A map of tests that should error. The keys are the test names, and the
 	 * values are the error messages that are expected.
 	 */
-	getShouldErrorTests : function() {
-		return this.shouldErrorTests;
+	getErrorTests : function() {
+		return this.errorTests;
 	}
 	
 } );
