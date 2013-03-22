@@ -317,6 +317,9 @@ describe( "Parser", function() {
 				'            name : "method() test case",',
 				'            "something should happen" : function() {',
 				'                var a = 1;',
+				'            },',
+				'            "something else should happen" : function() {',
+				'                var b = 2;',
 				'            }',
 				'        }',
 				'    ]',
@@ -324,8 +327,13 @@ describe( "Parser", function() {
 			].join( "\n" );
 			
 			var suite = new Parser( input ).parseOuterSuite();
+			
 			expect( suite ).to.be.instanceOf( SuiteNode );
 			expect( suite.getName() ).to.equal( "unit.thePackage.TheClass" );
+			
+			expect( suite.getChildren().length ).to.equal( 1 );
+			expect( suite.getChildren()[ 0 ].getName() ).to.equal( "method() test case" );
+			expect( suite.getChildren()[ 0 ].getTests().length ).to.equal( 2 );
 		} );
 		
 	} );
@@ -349,7 +357,7 @@ describe( "Parser", function() {
 			var parser = new Parser( input );
 			
 			// Advance parser read position to the inner suite
-			var itemsMatch = /items : \[/.exec( input );
+			var itemsMatch = /items\s*:\s*\[/.exec( input );
 			parser.currentPos = itemsMatch.index + itemsMatch[ 0 ].length;
 			
 			var suite = parser.parseSuite();
@@ -386,6 +394,8 @@ describe( "Parser", function() {
 			expect( suiteNode ).to.not.equal( null );
 			expect( suiteNode.getName() ).to.equal( "method() suite" );
 			expect( suiteNode.getChildren().length ).to.equal( 2 );
+			expect( suiteNode.getChildren()[ 0 ].getName() ).to.equal( "Test some() method" );
+			expect( suiteNode.getChildren()[ 1 ].getName() ).to.equal( "Test someOther() method" );
 		} );
 		
 		
@@ -550,13 +560,11 @@ describe( "Parser", function() {
 				'    ',
 				'}'
 			].join( "\n" );
-			console.log( input.indexOf( 'Test' ) );
 			
 			var parser = new Parser( input );
 			parser.currentPos = 16;  // The word "Test" in the comment block
 			
 			expect( parser.parseTestCase() ).to.equal( null );
-			console.log( parser.currentPos );
 			expect( parser.currentPos ).to.equal( 16 );  // currentPos should not have been advanced
 		} );
 		

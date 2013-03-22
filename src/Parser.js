@@ -18,6 +18,123 @@ var Class = require( './Class' ),
  */
 var Parser = Class.extend( Object, {
 	
+	
+	/**
+	 * @protected
+	 * @property {Number} currentPos
+	 * 
+	 * The current character position that is being read.
+	 */
+	currentPos : 0,
+	
+	/**
+	 * @protected
+	 * @property {RegExp} outerSuiteRe
+	 * 
+	 * The regular expression used to find the location of the outer suite.
+	 * 
+	 * Capturing groups:
+	 * 
+	 * 1. The whitespace of indent to the outer suite.
+	 * 2. The package name for the suite. Example: 'unit.persistence'
+	 * 3. The Suite name.
+	 */
+	outerSuiteRe : /^([ \t]*)tests\.(.*?)\.add\(\s*new\s*Ext\.test\.TestSuite\(\s*\{\s*name\s*:\s*['"](.*?)['"],/m,
+	
+	/**
+	 * @protected
+	 * @property {RegExp} suiteRe
+	 * 
+	 * The regular expression used to match inner suites. This is as opposed to the {@link #outerSuiteRe outer suite},
+	 * where there should only be one.
+	 * 
+	 * Capturing groups:
+	 * 
+	 * 1. The Suite name.
+	 */
+	suiteRe : /\{\s*(?:\/\*[\s\S]*?\*\/)?\s*name\s*:\s*['"](.*?)['"],\s*?ttype\s*:\s*['"].*?['"],?/g,
+	
+	/**
+	 * @protected
+	 * @property {RegExp} testCaseRe
+	 * 
+	 * The regular expression used to match inner suites. This is as opposed to the {@link #outerSuiteRe outer suite},
+	 * where there should only be one.
+	 * 
+	 * Capturing groups:
+	 * 
+	 * 1. The TestCase name.
+	 */
+	testCaseRe : /\{\s*(?:\/\*[\s\S]*?\*\/)?\s*name\s*:\s*['"](.*?)['"],?(?!\s*?ttype)/g,
+	
+	
+	/**
+	 * @protected
+	 * @property {RegExp} shouldRe
+	 * 
+	 * The regular expression used to match a "should" block, which holds instructions for tests to ignore, and
+	 * tests which should throw errors.
+	 */
+	shouldRe : /_should\s*:\s*\{/g,
+	
+	/**
+	 * @protected
+	 * @property {RegExp} shouldErrorRe
+	 * 
+	 * The regular expression used to match an "error" block inside a "should" block, which holds instructions for tests
+	 * which should throw errors.
+	 */
+	shouldErrorRe : /error\s*:\s*\{/g,
+	
+	/**
+	 * @protected
+	 * @property {RegExp} shouldIgnoreRe
+	 * 
+	 * The regular expression used to match an "ignore" block inside a "should" block, which holds instructions for tests
+	 * which should be ignored.
+	 */
+	shouldIgnoreRe : /ignore\s*:\s*\{/g,
+	
+	/**
+	 * @protected
+	 * @property {RegExp} setUpRe
+	 * 
+	 * The regular expression used to match a setUp() method.
+	 */
+	setUpRe : /setUp\s*:\s*function\(\)\s*\{/g,
+	
+	/**
+	 * @protected
+	 * @property {RegExp} tearDownRe
+	 * 
+	 * The regular expression used to match a tearDown() method.
+	 */
+	tearDownRe : /tearDown\s*:\s*function\(\)\s*\{/g,
+	
+	/**
+	 * @protected
+	 * @property {RegExp} testRe
+	 * 
+	 * The regular expression used to match a test method. This is a method that starts with the word 'test',
+	 * or has the word "should" in the method name.
+	 * 
+	 * Capturing groups:
+	 * 
+	 * 1. The Test name if the method name starts with 'test'.
+	 * 1. The Test name if the method name has the word 'should' in it.
+	 */
+	testRe : /(?:test_?([A-Za-z_\$]*?)|['"](.*? should .*?)['"])\s*:\s*function\(\)\s*\{/g,
+	
+	/**
+	 * @protected
+	 * @property {RegExp} identifierRe
+	 * 
+	 * The regular expression used to match a JavaScript identifier.
+	 */
+	identifierRe : /[A-Za-z_\$][A-Za-z_\$0-9]*/g,
+	
+	
+	
 	statics : {
 		
 		/**
@@ -238,122 +355,6 @@ var Parser = Class.extend( Object, {
 	
 	
 	/**
-	 * @protected
-	 * @property {Number} currentPos
-	 * 
-	 * The current character position that is being read.
-	 */
-	currentPos : 0,
-	
-	/**
-	 * @protected
-	 * @property {RegExp} outerSuiteRe
-	 * 
-	 * The regular expression used to find the location of the outer suite.
-	 * 
-	 * Capturing groups:
-	 * 
-	 * 1. The whitespace of indent to the outer suite.
-	 * 2. The package name for the suite. Example: 'unit.persistence'
-	 * 3. The Suite name.
-	 */
-	outerSuiteRe : /^([ \t]*)tests\.(.*?)\.add\(\s*new\s*Ext\.test\.TestSuite\(\s*\{\s*name\s*:\s*['"](.*?)['"],/m,
-	
-	/**
-	 * @protected
-	 * @property {RegExp} suiteRe
-	 * 
-	 * The regular expression used to match inner suites. This is as opposed to the {@link #outerSuiteRe outer suite},
-	 * where there should only be one.
-	 * 
-	 * Capturing groups:
-	 * 
-	 * 1. The Suite name.
-	 */
-	suiteRe : /\{\s*(?:\/\*[\s\S]*?\*\/)?\s*name\s*:\s*['"](.*?)['"],\s*?ttype.*?,?/g,
-	
-	/**
-	 * @protected
-	 * @property {RegExp} testCaseRe
-	 * 
-	 * The regular expression used to match inner suites. This is as opposed to the {@link #outerSuiteRe outer suite},
-	 * where there should only be one.
-	 * 
-	 * Capturing groups:
-	 * 
-	 * 1. The TestCase name.
-	 */
-	testCaseRe : /\{\s*(?:\/\*[\s\S]*?\*\/)?\s*name\s*:\s*['"](.*?)['"],?(?!\s*?ttype)/g,
-	
-	
-	/**
-	 * @protected
-	 * @property {RegExp} shouldRe
-	 * 
-	 * The regular expression used to match a "should" block, which holds instructions for tests to ignore, and
-	 * tests which should throw errors.
-	 */
-	shouldRe : /_should\s*:\s*\{/g,
-	
-	/**
-	 * @protected
-	 * @property {RegExp} shouldErrorRe
-	 * 
-	 * The regular expression used to match an "error" block inside a "should" block, which holds instructions for tests
-	 * which should throw errors.
-	 */
-	shouldErrorRe : /error\s*:\s*\{/g,
-	
-	/**
-	 * @protected
-	 * @property {RegExp} shouldIgnoreRe
-	 * 
-	 * The regular expression used to match an "ignore" block inside a "should" block, which holds instructions for tests
-	 * which should be ignored.
-	 */
-	shouldIgnoreRe : /ignore\s*:\s*\{/g,
-	
-	/**
-	 * @protected
-	 * @property {RegExp} setUpRe
-	 * 
-	 * The regular expression used to match a setUp() method.
-	 */
-	setUpRe : /setUp\s*:\s*function\(\)\s*\{/g,
-	
-	/**
-	 * @protected
-	 * @property {RegExp} tearDownRe
-	 * 
-	 * The regular expression used to match a tearDown() method.
-	 */
-	tearDownRe : /tearDown\s*:\s*function\(\)\s*\{/g,
-	
-	/**
-	 * @protected
-	 * @property {RegExp} testRe
-	 * 
-	 * The regular expression used to match a test method. This is a method that starts with the word 'test',
-	 * or has the word "should" in the method name.
-	 * 
-	 * Capturing groups:
-	 * 
-	 * 1. The Test name if the method name starts with 'test'.
-	 * 1. The Test name if the method name has the word 'should' in it.
-	 */
-	testRe : /(?:test_?([A-Za-z_\$]*?)|['"](.*? should .*?)['"])\s*:\s*function\(\)\s*\{/g,
-	
-	/**
-	 * @protected
-	 * @property {RegExp} identifierRe
-	 * 
-	 * The regular expression used to match a JavaScript identifier.
-	 */
-	identifierRe : /[A-Za-z_\$][A-Za-z_\$0-9]*/g,
-	
-	
-	
-	/**
 	 * @constructor
 	 * @param {String} input The input string.
 	 */
@@ -370,40 +371,57 @@ var Parser = Class.extend( Object, {
 	
 	
 	/**
-	 * Starts the parsing routine.
+	 * Runs the parsing routine.
 	 * 
-	 * @return {node.Suite} The Suite node at the top level.
+	 * @return {Object} An object with the following properties
+	 * @return {node.Suite} return.tree The Suite node at the top level of the parse tree.
+	 * @return {Number} return.startIdx The index that the parsing started at. This will be the
+	 *   index that the outer suite was found in the {@link #input}.
+	 * @return {Number} return.endIdx The index that the parsing ended at.
 	 */
-	parse : function() {		
+	parse : function() {
 		var suiteNode = this.parseOuterSuite();
 		if( suiteNode === null ) {
 			throw new Error( "No outer Ext.Test Suite found" );
 		}
-		return suiteNode;
+		
+		return {
+			tree: suiteNode,
+			startIdx : this.outerSuiteIdx,  // set in parseOuterSuite
+			endIdx : this.currentPos   // the current position after parsing
+		};
 	},
 	
 	
 	/**
-	 * Finds and parses the outer Suite , or returns `null` if the outer Suite could not be found.
+	 * Finds and parses the outer Suite, or returns `null` if the outer Suite could not be found.
 	 * 
 	 * @protected
 	 * @return {node.Suite} The Suite node for the outer suite.
 	 */
 	parseOuterSuite : function() {
-		var outerSuiteMatch = this.outerSuiteRe.exec( this.input ),
-		    outerSuiteNode = null;
+		var outerSuiteMatch = this.outerSuiteRe.exec( this.input );
 		
-		if( outerSuiteMatch ) {
-			var suiteName = outerSuiteMatch[ 2 ] + '.' + outerSuiteMatch[ 3 ];  // package name + class name
+		if( !outerSuiteMatch ) {
+			return null;
+			
+		} else {
+			// Hack: save the location of the outer suite
+			this.outerSuiteIdx = outerSuiteMatch.index;
+			
 			this.currentPos = outerSuiteMatch.index + outerSuiteMatch[ 0 ].length;
 			
-			var children = [];
+			var suiteName = outerSuiteMatch[ 2 ] + '.' + outerSuiteMatch[ 3 ],  // package name + class name
+			    children = this.parseItems() || [];
 			
+			var endOuterSuiteSeqMatch = this.getMatch( /\}\s*\)\s*\);/g );
+			if( !endOuterSuiteSeqMatch ) {
+				throw new Error( "Expected closing sequnce '} ) );' for the end of the outer Suite, but found " + this.input.substr( this.currentPos, 10 ) + " instead." );
+			}
+			this.currentPos += endOuterSuiteSeqMatch[ 0 ].length;  // advanced past the closing sequence
 			
-			outerSuiteNode = new SuiteNode( suiteName, children );
+			return new SuiteNode( suiteName, children );
 		}
-		
-		return outerSuiteNode;
 	},
 	
 	
@@ -418,19 +436,67 @@ var Parser = Class.extend( Object, {
 		this.skipWhitespace();
 		
 		var suiteMatch = this.getMatch( this.suiteRe ),  // attempts to match the regex at the currentPos
-		    suiteNode = null;
+		    input = this.input;
 		
-		if( suiteMatch !== null ) {  // if there's a Suite match at the current position
-			var suiteName = suiteMatch[ 1 ];
-			this.currentPos = suiteMatch.index + suiteMatch[ 0 ].length;
+		if( !suiteMatch ) {
+			return null;
 			
-			var children = [];
+		} else {
+			// if there's a Suite match at the current position
+			this.currentPos += suiteMatch[ 0 ].length;
+			this.skipWhitespace();
+			
+			var suiteName = suiteMatch[ 1 ],
+			    children = this.parseItems() || [];  // default to an empty array
+			
+			if( this.peekChar() !== '}' ) {
+				throw new Error( "Expected closing brace '}' for the end of a Suite, but found " + this.peekChar() + " instead." );
+			}
+			this.currentPos++;  // advanced past the closing brace '}'
 			
 			
-			suiteNode = new SuiteNode( suiteName, children );
+			return new SuiteNode( suiteName, children );
 		}
+	},
+	
+	
+	
+	/**
+	 * Parses an 'items' array at the {@link #currentPos}, or returns `null` if an items array was not matched.
+	 * 
+	 * @protected
+	 * @return {node.Node[]} The nodes parsed in the items array at the {@link #currentPos}, or `null` if an items
+	 *   array was not not matched.
+	 */
+	parseItems : function() {
+		this.skipWhitespace();
 		
-		return suiteNode;
+		var itemsRe = /items\s*:\s*\[/g,
+		    itemsMatch = this.getMatch( itemsRe );
+		
+		if( !itemsMatch ) {
+			return null;
+			
+		} else {
+			this.currentPos += itemsMatch[ 0 ].length;
+			this.skipWhitespace();
+			
+			var items = [];
+			while( this.peekChar() !== ']' ) {
+				items.push( this.parseSuite() || this.parseTestCase() );
+				
+				this.skipWhitespace();
+				if( this.peekChar() === ',' ) {
+					this.currentPos++;  // advanced past the comma, if there is one
+				}
+				this.skipWhitespace();
+			}
+			
+			this.currentPos++;  // skip over the ']
+			this.skipWhitespace();
+			
+			return items;
+		}
 	},
 	
 	
@@ -507,7 +573,6 @@ var Parser = Class.extend( Object, {
 			this.skipWhitespace();
 			if( this.peekChar() === ',' )
 				this.currentPos++;  // advanced past the comma, if there is one
-			
 			
 			shouldNode = new ShouldNode( shouldObj.ignore, shouldObj.error );
 		}
