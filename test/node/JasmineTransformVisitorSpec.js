@@ -316,12 +316,30 @@ describe( 'node.JasmineTransformVisitor', function() {
 			} );
 			
 			
+			it( "should properly convert Y.Assert.areNotSame() assertions", function() {
+				expect( jtv.convertAssertions( 'Y.Assert.areNotSame( something, somethingElse );' ) )
+					.to.equal( 'expect( somethingElse ).not.toBe( something );' );
+				
+				expect( jtv.convertAssertions( 'Y.Assert.areNotSame( something, somethingElse, "something should have been somethingElse" );' ) )
+					.to.equal( 'expect( somethingElse ).not.toBe( something );  // orig YUI Test err msg: "something should have been somethingElse"' );
+			} );
+			
+			
 			it( "should properly convert Y.Assert.areEqual() assertions", function() {
 				expect( jtv.convertAssertions( 'Y.Assert.areEqual( something, somethingElse );' ) )
 					.to.equal( 'expect( somethingElse ).toEqual( something );' );
 				
 				expect( jtv.convertAssertions( 'Y.Assert.areEqual( something, somethingElse, "something should have been equal to somethingElse" );' ) )
 					.to.equal( 'expect( somethingElse ).toEqual( something );  // orig YUI Test err msg: "something should have been equal to somethingElse"' );
+			} );
+			
+			
+			it( "should properly convert Y.Assert.areNotEqual() assertions", function() {
+				expect( jtv.convertAssertions( 'Y.Assert.areNotEqual( something, somethingElse );' ) )
+					.to.equal( 'expect( somethingElse ).not.toEqual( something );' );
+				
+				expect( jtv.convertAssertions( 'Y.Assert.areNotEqual( something, somethingElse, "something should have been equal to somethingElse" );' ) )
+					.to.equal( 'expect( somethingElse ).not.toEqual( something );  // orig YUI Test err msg: "something should have been equal to somethingElse"' );
 			} );
 			
 			

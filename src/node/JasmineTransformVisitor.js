@@ -250,9 +250,19 @@ var JasmineTransformVisitor = Class.extend( NodeVisitor, {
 							ret = "expect( " + args[ 1 ] + " ).toBe( " + args[ 0 ] + " );";
 							errMsg = args[ 2 ];
 							break;
+							
+						case 'areNotSame' :
+							ret = "expect( " + args[ 1 ] + " ).not.toBe( " + args[ 0 ] + " );";
+							errMsg = args[ 2 ];
+							break;
 						
 						case 'areEqual' :
 							ret = "expect( " + args[ 1 ] + " ).toEqual( " + args[ 0 ] + " );";
+							errMsg = args[ 2 ];
+							break;
+						
+						case 'areNotEqual' :
+							ret = "expect( " + args[ 1 ] + " ).not.toEqual( " + args[ 0 ] + " );";
 							errMsg = args[ 2 ];
 							break;
 							
