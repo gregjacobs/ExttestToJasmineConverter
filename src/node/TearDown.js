@@ -1,30 +1,22 @@
 /*global require, module */
-var Node = require( './Node' );
+var CodeNode = require( './Code' );
 
 
 /**
  * @class node.SetUp
+ * @extends node.Code
  * 
  * Represents an Ext.Test tearDown() method. 
  */
-var TearDownNode = Node.extend( {
+var TearDownNode = CodeNode.extend( {
 	
 	/**
-	 * @constructor
-	 * @param {String} body The body of code in the tearDown method.
-	 */
-	constructor : function( body ) {
-		this.body = body;
-	},
-	
-	
-	/**
-	 * Retrieves the body of the tearDown() function.
+	 * Accepts a Visitor.
 	 * 
-	 * @return {String}
+	 * @param {node.Visitor} visitor
 	 */
-	getBody : function() {
-		return this.body;
+	accept : function( visitor ) {
+		visitor.visitTearDown( this );
 	}
 	
 } );

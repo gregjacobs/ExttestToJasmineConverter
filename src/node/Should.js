@@ -4,6 +4,7 @@ var Node = require( './Node' );
 
 /**
  * @class node.Should
+ * @extends node.Node
  * 
  * Represents an Ext.Test `_should` block, which holds directives for ignored tests and
  * tests that should throw an error. 
@@ -42,6 +43,16 @@ var ShouldNode = Node.extend( {
 	 */
 	getErrorTests : function() {
 		return this.errorTests;
+	},
+	
+	
+	/**
+	 * Accepts a Visitor.
+	 * 
+	 * @param {node.Visitor} visitor
+	 */
+	accept : function( visitor ) {
+		visitor.visitShould( this );
 	}
 	
 } );

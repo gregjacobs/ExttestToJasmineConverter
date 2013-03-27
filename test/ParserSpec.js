@@ -306,6 +306,19 @@ describe( "Parser", function() {
 	
 	
 	
+	// -----------------------------------
+	
+	
+	describe( "parse()", function() {
+		
+		it( "should parse a simple test file", function() {
+			
+		} );
+		
+	} );
+	
+	
+	
 	describe( "parseOuterSuite()", function() {
 		
 		it( "should find and parse the outer suite", function() {

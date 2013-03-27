@@ -4,6 +4,7 @@ var Node = require( './Node' );
 
 /**
  * @class node.TestCase
+ * @extends node.Node
  * 
  * Represents an Ext.Test TestCase. A TestCase has a name, and may be composed of a 
  * {@link node.SetUp Setup} node, a {@link node.TearDown TearDown} node, a {@link node.Should Should}
@@ -40,6 +41,16 @@ var TestCaseNode = Node.extend( {
 	
 	
 	/**
+	 * Retrieves the Should node (if there is one).
+	 * 
+	 * @return {node.Should} The Should node, or null if there was no _should object.
+	 */
+	getShould : function() {
+		return this.should;
+	},
+	
+	
+	/**
 	 * Retrieves the SetUp node (if there is one).
 	 * 
 	 * @return {node.SetUp} The SetUp node, or null if there was no setUp() method.
@@ -60,22 +71,34 @@ var TestCaseNode = Node.extend( {
 	
 	
 	/**
-	 * Retrieves the Should node (if there is one).
-	 * 
-	 * @return {node.Should} The Should node, or null if there was no _should object.
-	 */
-	getShould : function() {
-		return this.should;
-	},
-	
-	
-	/**
 	 * Retrieves the Test nodes.
 	 * 
 	 * @return {node.Test[]} The array of Test nodes, one for each test method.
 	 */
 	getTests : function() {
-		return this.tests;
+		return this.tests || [];
+	},
+	
+	
+	/**
+	 * Accepts a Visitor.
+	 * 
+	 * @param {node.Visitor} visitor
+	 */
+	accept : function( visitor ) {
+		visitor.visitTestCase( this );
+		
+		var should = this.getShould(),
+		    setUp = this.getSetUp(),
+		    tearDown = this.getTearDown(),
+		    tests = this.getTests();
+		
+		if( should ) should.accept( visitor );
+		if( setUp ) setUp.accept( visitor );
+		if( tearDown ) tearDown.accept( visitor );
+		tests.forEach( function( test ) {
+			test.accept( visitor );
+		} );
 	}
 	
 } );

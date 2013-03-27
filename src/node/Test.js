@@ -1,13 +1,14 @@
 /*global require, module */
-var Node = require( './Node' );
+var CodeNode = require( './Code' );
 
 
 /**
  * @class node.Test
+ * @extends node.Code
  * 
  * Represents an Ext.Test Test. A Test has a name, and a body of code. 
  */
-var TestNode = Node.extend( {
+var TestNode = CodeNode.extend( {
 	
 	/**
 	 * @constructor
@@ -15,13 +16,14 @@ var TestNode = Node.extend( {
 	 * @param {String} body The body of code in the test.
 	 */
 	constructor : function( name, body ) {
+		this._super( [ body ] );
+		
 		this.name = name;
-		this.body = body;
 	},
 	
 	
 	/**
-	 * Retrieves the name.
+	 * Retrieves the Test's name.
 	 * 
 	 * @return {String}
 	 */
@@ -31,12 +33,12 @@ var TestNode = Node.extend( {
 	
 	
 	/**
-	 * Retrieves the body of the test method.
+	 * Accepts a Visitor.
 	 * 
-	 * @return {String}
+	 * @param {node.Visitor} visitor
 	 */
-	getBody : function() {
-		return this.body;
+	accept : function( visitor ) {
+		visitor.visitTest( this );
 	}
 	
 } );

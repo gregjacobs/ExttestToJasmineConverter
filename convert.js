@@ -1,10 +1,15 @@
-// This file is to be run on node.js
-// Should take input and output files
+/**
+ * This file is to be run on node.js. Ex:
+ * 
+ * node convert.js input [output]
+ * 
+ * If no output is given, prints to the console.
+ */
 
 /*global process, require */
 var fs = require( 'fs' ),
     argv = process.argv,
-    Converter = require( './Converter' );
+    Converter = require( './src/Converter' );
 
 
 if( argv.length < 3 ) {

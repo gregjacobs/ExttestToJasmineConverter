@@ -1,6 +1,7 @@
 /*global require, module */
 /*jshint boss:true, evil:true */
 var Class = require( './Class' ),
+    ParseResult  = require( './ParseResult' ),
     SuiteNode    = require( './node/Suite' ),
     TestCaseNode = require( './node/TestCase' ),
     ShouldNode   = require( './node/Should' ),
@@ -39,7 +40,7 @@ var Parser = Class.extend( Object, {
 	 * 2. The package name for the suite. Example: 'unit.persistence'
 	 * 3. The Suite name.
 	 */
-	outerSuiteRe : /^([ \t]*)tests\.(.*?)\.add\(\s*new\s*Ext\.test\.TestSuite\(\s*\{\s*name\s*:\s*['"](.*?)['"],/m,
+	outerSuiteRe : /^([ \t]*)tests\.(.*?)\.add\(\s*new\s*Ext\.test\.(?:Test)?Suite\(\s*\{\s*name\s*:\s*['"](.*?)['"],/gm,
 	
 	/**
 	 * @protected
@@ -380,17 +381,25 @@ var Parser = Class.extend( Object, {
 	 * @return {Number} return.endIdx The index that the parsing ended at.
 	 */
 	parse : function() {
-		var suiteNode = this.parseOuterSuite();
-		if( suiteNode === null ) {
+		// First, find where we should start by matching the outer suite
+		var outerSuiteMatch = new RegExp( this.outerSuiteRe ).exec( this.input );  // note: make a copy of the outerSuiteRe, so multiple uses of the regex (which is on the prototype) between instances are not affected
+		if( !outerSuiteMatch ) {
 			throw new Error( "No outer Ext.Test Suite found" );
 		}
 		
-		return {
-			tree: suiteNode,
-			startIdx : this.outerSuiteIdx,  // set in parseOuterSuite
-			endIdx : this.currentPos   // the current position after parsing
-		};
+		var startIdx = outerSuiteMatch.index;
+		this.currentPos = startIdx;  // advance current position to the start of the outer suite
+		
+		var suiteNode = this.parseOuterSuite();
+		
+		return new ParseResult( {
+			parseTree : suiteNode,
+			input     : this.input,
+			startIdx  : startIdx,
+			endIdx    : this.currentPos   // the current position after parsing
+		} );
 	},
+	
 	
 	
 	/**
@@ -400,15 +409,12 @@ var Parser = Class.extend( Object, {
 	 * @return {node.Suite} The Suite node for the outer suite.
 	 */
 	parseOuterSuite : function() {
-		var outerSuiteMatch = this.outerSuiteRe.exec( this.input );
+		var outerSuiteMatch = this.getMatch( this.outerSuiteRe );  // attempts to match the regex at the currentPos
 		
 		if( !outerSuiteMatch ) {
 			return null;
 			
 		} else {
-			// Hack: save the location of the outer suite
-			this.outerSuiteIdx = outerSuiteMatch.index;
-			
 			this.currentPos = outerSuiteMatch.index + outerSuiteMatch[ 0 ].length;
 			
 			var suiteName = outerSuiteMatch[ 2 ] + '.' + outerSuiteMatch[ 3 ],  // package name + class name
