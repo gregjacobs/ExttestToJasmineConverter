@@ -32,7 +32,7 @@ var Parser = Class.extend( Object, {
 	 * @protected
 	 * @property {RegExp} outerSuiteRe
 	 * 
-	 * The regular expression used to find the location of the outer suite.
+	 * The regular expression used to find the location of an outer suite.
 	 * 
 	 * Capturing groups:
 	 * 
@@ -41,6 +41,20 @@ var Parser = Class.extend( Object, {
 	 * 3. The Suite name.
 	 */
 	outerSuiteRe : /^([ \t]*)tests\.(.*?)\.add\(\s*new\s*Ext\.test\.(?:Test)?Suite\(\s*\{\s*name\s*:\s*['"](.*?)['"],/gm,
+	
+	/**
+	 * @protected
+	 * @property {RegExp} outerTestCaseRe
+	 * 
+	 * The regular expression used to find the location of an outer test case.
+	 * 
+	 * Capturing groups:
+	 * 
+	 * 1. The whitespace of indent to the outer suite.
+	 * 2. The package name for the suite. Example: 'unit.persistence'
+	 * 3. The Suite name.
+	 */
+	outerTestCaseRe : /^([ \t]*)tests\.(.*?)\.add\(\s*new\s*Ext\.test\.(?:Test)?Case\(\s*\{\s*name\s*:\s*['"](.*?)['"],/gm,
 	
 	/**
 	 * @protected
@@ -280,8 +294,9 @@ var Parser = Class.extend( Object, {
 				throw new Error( "Character at idx " + idx + " of input string was not an opening comment character. Found: `" + beginCommentChar + nextCommentChar + "` instead" );
 			
 			var inputStrLen = input.length,
-			    currentCharIdx = idx + 1,
-			    currentChar;
+			    currentCharIdx = idx + 2,
+			    currentChar,
+			    currentSeq;
 			
 			if( nextCommentChar === '/' ) {
 				// single line comment
@@ -293,9 +308,9 @@ var Parser = Class.extend( Object, {
 			} else {
 				// multi-line comment
 				while( currentCharIdx < inputStrLen ) {
-					currentChar = input.charAt( currentCharIdx );
-					if( currentChar === '*' && input.charAt( currentCharIdx + 1 ) === '/' ) { 
-						return currentCharIdx + 1;
+					currentSeq = input.substr( currentCharIdx, 2 );
+					if( currentSeq === '*/' ) {
+						return currentCharIdx + 2;
 					}
 					currentCharIdx++;
 				}
@@ -374,26 +389,25 @@ var Parser = Class.extend( Object, {
 	/**
 	 * Runs the parsing routine.
 	 * 
-	 * @return {Object} An object with the following properties
-	 * @return {node.Suite} return.tree The Suite node at the top level of the parse tree.
-	 * @return {Number} return.startIdx The index that the parsing started at. This will be the
-	 *   index that the outer suite was found in the {@link #input}.
-	 * @return {Number} return.endIdx The index that the parsing ended at.
+	 * @return {ParseResult} A ParseResult object detailing the parse.
+	 * @throws {Error} If an outer (wrapping) Suite or TestCase could not be found in the {@link #input}.
 	 */
 	parse : function() {
-		// First, find where we should start by matching the outer suite
-		var outerSuiteMatch = new RegExp( this.outerSuiteRe ).exec( this.input );  // note: make a copy of the outerSuiteRe, so multiple uses of the regex (which is on the prototype) between instances are not affected
-		if( !outerSuiteMatch ) {
-			throw new Error( "No outer Ext.Test Suite found" );
+		// First, find where we should start by matching the outer suite or outer test case
+		var outerSuiteMatch = new RegExp( this.outerSuiteRe ).exec( this.input ),        // note: make a copy of the outerSuiteRe, so multiple uses of the regex (which is on the prototype) between instances are not affected
+		    outerTestCaseMatch = new RegExp( this.outerTestCaseRe ).exec( this.input );  // note: make a copy of the outerTestCaseRe, so multiple uses of the regex (which is on the prototype) between instances are not affected
+		
+		if( !outerSuiteMatch && !outerTestCaseMatch ) {
+			throw new Error( "No outer Ext.Test Suite or TestCase found" );
 		}
 		
-		var startIdx = outerSuiteMatch.index;
+		var startIdx = ( outerSuiteMatch ) ? outerSuiteMatch.index : outerTestCaseMatch.index;
 		this.currentPos = startIdx;  // advance current position to the start of the outer suite
 		
-		var suiteNode = this.parseOuterSuite();
+		var outerNode = ( outerSuiteMatch ) ? this.parseOuterSuite() : this.parseOuterTestCase();
 		
 		return new ParseResult( {
-			parseTree : suiteNode,
+			parseTree : outerNode,
 			input     : this.input,
 			startIdx  : startIdx,
 			endIdx    : this.currentPos   // the current position after parsing
@@ -403,7 +417,7 @@ var Parser = Class.extend( Object, {
 	
 	
 	/**
-	 * Finds and parses the outer Suite, or returns `null` if the outer Suite could not be found.
+	 * Parses an outer Suite at the {@link #currentPos}, or returns `null` if a Suite was not matched.
 	 * 
 	 * @protected
 	 * @return {node.Suite} The Suite node for the outer suite.
@@ -418,7 +432,7 @@ var Parser = Class.extend( Object, {
 			this.currentPos = outerSuiteMatch.index + outerSuiteMatch[ 0 ].length;
 			
 			var suiteName = outerSuiteMatch[ 2 ] + '.' + outerSuiteMatch[ 3 ],  // package name + class name
-			    children = this.parseItems() || [];
+			    children = this.parseSuiteItems() || [];
 			
 			var endOuterSuiteSeqMatch = this.getMatch( /\}\s*\)\s*\);/g );
 			if( !endOuterSuiteSeqMatch ) {
@@ -432,6 +446,35 @@ var Parser = Class.extend( Object, {
 	
 	
 	/**
+	 * Parses an outer TestCase at the {@link #currentPos}, or returns `null` if a TestCase was not matched.
+	 * 
+	 * @protected
+	 * @return {node.TestCase} The TestCase node for the outer TestCase.
+	 */
+	parseOuterTestCase : function() {
+		var outerTestCaseMatch = this.getMatch( this.outerTestCaseRe );  // attempts to match the regex at the currentPos
+		
+		if( !outerTestCaseMatch ) {
+			return null;
+			
+		} else {
+			this.currentPos = outerTestCaseMatch.index + outerTestCaseMatch[ 0 ].length;
+			
+			var testCaseNode = this.parseTestCaseItems();
+			testCaseNode.setName( outerTestCaseMatch[ 2 ] + '.' + outerTestCaseMatch[ 3 ] );  // package name + class name
+			
+			var endOuterTestCaseSeqMatch = this.getMatch( /\}\s*\)\s*\);/g );
+			if( !endOuterTestCaseSeqMatch ) {
+				throw new Error( "Expected closing sequnce '} ) );' for the end of the outer TestCase, but found " + this.input.substr( this.currentPos, 10 ) + " instead." );
+			}
+			this.currentPos += endOuterTestCaseSeqMatch[ 0 ].length;  // advanced past the closing sequence
+			
+			return testCaseNode;
+		}
+	},
+	
+	
+	/**
 	 * Parses an inner Suite at the {@link #currentPos}, or returns `null` if a Suite was not matched.
 	 * 
 	 * @protected
@@ -439,7 +482,7 @@ var Parser = Class.extend( Object, {
 	 *   not matched.
 	 */
 	parseSuite : function() {
-		this.skipWhitespace();
+		this.skipWhitespaceAndComments();
 		
 		var suiteMatch = this.getMatch( this.suiteRe ),  // attempts to match the regex at the currentPos
 		    input = this.input;
@@ -450,10 +493,10 @@ var Parser = Class.extend( Object, {
 		} else {
 			// if there's a Suite match at the current position
 			this.currentPos += suiteMatch[ 0 ].length;
-			this.skipWhitespace();
+			this.skipWhitespaceAndComments();
 			
 			var suiteName = suiteMatch[ 1 ],
-			    children = this.parseItems() || [];  // default to an empty array
+			    children = this.parseSuiteItems() || [];  // default to an empty array
 			
 			if( this.peekChar() !== '}' ) {
 				throw new Error( "Expected closing brace '}' for the end of a Suite, but found " + this.peekChar() + " instead." );
@@ -474,8 +517,8 @@ var Parser = Class.extend( Object, {
 	 * @return {node.Node[]} The nodes parsed in the items array at the {@link #currentPos}, or `null` if an items
 	 *   array was not not matched.
 	 */
-	parseItems : function() {
-		this.skipWhitespace();
+	parseSuiteItems : function() {
+		this.skipWhitespaceAndComments();
 		
 		var itemsRe = /items\s*:\s*\[/g,
 		    itemsMatch = this.getMatch( itemsRe );
@@ -485,21 +528,21 @@ var Parser = Class.extend( Object, {
 			
 		} else {
 			this.currentPos += itemsMatch[ 0 ].length;
-			this.skipWhitespace();
+			this.skipWhitespaceAndComments();
 			
 			var items = [];
 			while( this.peekChar() !== ']' ) {
 				items.push( this.parseSuite() || this.parseTestCase() );
 				
-				this.skipWhitespace();
+				this.skipWhitespaceAndComments();
 				if( this.peekChar() === ',' ) {
 					this.currentPos++;  // advanced past the comma, if there is one
 				}
-				this.skipWhitespace();
+				this.skipWhitespaceAndComments();
 			}
 			
 			this.currentPos++;  // skip over the ']
-			this.skipWhitespace();
+			this.skipWhitespaceAndComments();
 			
 			return items;
 		}
@@ -514,7 +557,7 @@ var Parser = Class.extend( Object, {
 	 *   not matched.
 	 */
 	parseTestCase : function() {
-		this.skipWhitespace();
+		this.skipWhitespaceAndComments();
 		
 		var testCaseMatch = this.getMatch( this.testCaseRe ),  // attempts to match the regex at the currentPos
 		    testCaseNode = null;
@@ -522,40 +565,52 @@ var Parser = Class.extend( Object, {
 		if( testCaseMatch !== null ) {  // if there's a TestCase match at the current position
 			// advance the current position
 			this.currentPos = testCaseMatch.index + testCaseMatch[ 0 ].length;
-			this.skipWhitespace();
 			
-			var name = testCaseMatch[ 1 ],
-			    setUpNode = null,
-			    tearDownNode = null,
-			    shouldNode = null,
-			    tests = [];
-			
-			while( this.peekChar() !== '}' ) {
-				var obj = null;
-				if( obj = this.parseSetUp() ) {
-					setUpNode = obj;
-				} else if( obj = this.parseTearDown() ) {
-					tearDownNode = obj;
-				} else if( obj = this.parseShould() ) {
-					shouldNode = obj;
-				} else if( obj = this.parseTest() ) {
-					tests.push( obj );
-				}
-				
-				if( this.peekChar() === ',' )
-					this.currentPos++;  // advanced past the comma, if there is one
-				this.skipWhitespace();
-			}
+			testCaseNode = this.parseTestCaseItems();
+			testCaseNode.setName( testCaseMatch[ 1 ] );
 			
 			if( this.peekChar() !== '}' ) {
 				throw new Error( "Expected closing brace '}' for the end of a TestCase, but found " + this.peekChar() + " instead." );
 			}
 			this.currentPos++;  // advanced past the closing brace '}'
-			
-			testCaseNode = new TestCaseNode( name, setUpNode, tearDownNode, shouldNode, tests );
 		}
 		
 		return testCaseNode;
+	},
+	
+	
+	/**
+	 * Parses the items of a TestCase at the {@link #currentPos}.
+	 * 
+	 * @return {node.TestCase} A TestCase node with the items of the TestCase (the _should, setUp(), tearDown(), and tests),
+	 *   but without the name. The name should be added afterwards.
+	 */
+	parseTestCaseItems : function() {
+		this.skipWhitespaceAndComments();
+		
+		var setUpNode = null,
+		    tearDownNode = null,
+		    shouldNode = null,
+		    tests = [];
+		
+		while( this.peekChar() !== '}' ) {
+			var obj = null;
+			if( obj = this.parseSetUp() ) {
+				setUpNode = obj;
+			} else if( obj = this.parseTearDown() ) {
+				tearDownNode = obj;
+			} else if( obj = this.parseShould() ) {
+				shouldNode = obj;
+			} else if( obj = this.parseTest() ) {
+				tests.push( obj );
+			}
+			
+			if( this.peekChar() === ',' )
+				this.currentPos++;  // advanced past the comma, if there is one
+			this.skipWhitespaceAndComments();
+		}
+		
+		return new TestCaseNode( "", setUpNode, tearDownNode, shouldNode, tests );
 	},
 	
 	
@@ -565,7 +620,7 @@ var Parser = Class.extend( Object, {
 	 * @return {node.Should} The "should" node, or `null` if a "should" block was not found at the {@link #currentPos}.
 	 */
 	parseShould : function() {
-		this.skipWhitespace();
+		this.skipWhitespaceAndComments();
 		
 		var input = this.input,
 		    shouldMatch = this.getMatch( this.shouldRe ),  // attempts to match the regex at the currentPos
@@ -576,7 +631,7 @@ var Parser = Class.extend( Object, {
 			
 			var shouldObj = this.parseObjectLiteral();
 			
-			this.skipWhitespace();
+			this.skipWhitespaceAndComments();
 			if( this.peekChar() === ',' )
 				this.currentPos++;  // advanced past the comma, if there is one
 			
@@ -592,7 +647,7 @@ var Parser = Class.extend( Object, {
 	 * @return {node.SetUp} The SetUp node, or `null` if a setUp() method was not found at the {@link #currentPos}.
 	 */
 	parseSetUp : function() {
-		this.skipWhitespace();
+		this.skipWhitespaceAndComments();
 		
 		var setUpMatch = this.getMatch( this.setUpRe ),  // attempts to match the regex at the currentPos
 		    setUpNode = null;
@@ -621,7 +676,7 @@ var Parser = Class.extend( Object, {
 	 * @return {node.TearDown} The TearDown node, or `null` if a tearDown() method was not found at the {@link #currentPos}.
 	 */
 	parseTearDown : function() {
-		this.skipWhitespace();
+		this.skipWhitespaceAndComments();
 		
 		var tearDownMatch = this.getMatch( this.tearDownRe ),  // attempts to match the regex at the currentPos
 		    tearDownNode = null;
@@ -650,7 +705,7 @@ var Parser = Class.extend( Object, {
 	 * @return {node.Test} The Test node, or `null` if a test method was not found at the {@link #currentPos}.
 	 */
 	parseTest : function() {
-		this.skipWhitespace();
+		this.skipWhitespaceAndComments();
 		
 		var testMatch = this.getMatch( this.testRe ),  // attempts to match the regex at the currentPos
 		    testNode = null;
@@ -803,6 +858,22 @@ var Parser = Class.extend( Object, {
 	
 	
 	/**
+	 * Utility method used to skip over whitespace *and* comments. Continually tries to skip over whitespace and
+	 * comments until the {@link #currentPos} has not moved, and then returns.
+	 * 
+	 * @protected
+	 */
+	skipWhitespaceAndComments : function() {
+		var startPos;
+		do {
+			startPos = this.currentPos;
+			this.skipWhitespace();
+			this.skipComments();
+		} while( this.currentPos !== startPos );  // while advancing the currentPos, keep going
+	},
+	
+	
+	/**
 	 * Utility method to skip over the whitespace at the {@link #currentPos}. Moves the {@link #currentPos}
 	 * to the first non-whitespace character, or the end of the {@link #input} if that is reached first.
 	 * 
@@ -818,8 +889,26 @@ var Parser = Class.extend( Object, {
 			pos++;
 		}
 		this.currentPos = pos;
-	}
+	},
 	
+	
+	/**
+	 * Utility method to skip over JavaScript comments at the {@link #currentPos}. Moves the {@link #currentPos}
+	 * to the first character after the comment or comments.
+	 * 
+	 * @protected
+	 */
+	skipComments : function() {
+		var input = this.input,
+		    inputLen = input.length,
+		    pos = this.currentPos,
+		    commentRe = /\/\/|\/\*/;
+		
+		while( commentRe.test( input.substr( pos, 2 ) ) && pos < inputLen ) {
+			pos = Parser.findMatchingEndComment( input, pos );
+		}
+		this.currentPos = pos;
+	}
 } );
 
 module.exports = Parser;

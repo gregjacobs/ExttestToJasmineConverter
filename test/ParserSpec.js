@@ -3,6 +3,7 @@
 var expect       = require( 'chai' ).expect,
     fs           = require( 'fs' ),
     Parser       = require( '../src/Parser' ),
+    ParseResult  = require( '../src/ParseResult' ),
     SuiteNode    = require( '../src/node/Suite' ),
     TestCaseNode = require( '../src/node/TestCase' ),
     ShouldNode   = require( '../src/node/Should' ),
@@ -223,29 +224,56 @@ describe( "Parser", function() {
 					'fdsa\n'
 				].join( "" );
 				
-				expect( Parser.findMatchingEndComment( input, 5 ) ).to.equal( 21 );
+				var endCharPos = Parser.findMatchingEndComment( input, 5 );
+				expect( endCharPos ).to.equal( 21 );
+				expect( input.charAt( endCharPos ) ).to.equal( "\n" );
 			} );
 			
 			
 			it( "should find the end of a multi-line comment which exists on a single line", function() {
 				var input = [
 					'asdf\n',
-					'/* hola */ amigos \n',
+					'/* hola */amigos \n',
 					'fdsa\n'
 				].join( "" );
 				
-				expect( Parser.findMatchingEndComment( input, 5 ) ).to.equal( 14 );
+				var endCharPos = Parser.findMatchingEndComment( input, 5 );
+				expect( endCharPos ).to.equal( 15 );
+				expect( input.charAt( endCharPos ) ).to.equal( "a" );  // start of "amigos"
 			} );
 			
 			
 			it( "should find the end of a multi-line comment which exists on multiple lines", function() {
 				var input = [
-					'asdf\n',
-					'/* hola amigos \n',
-					'fd*/sa\n'
+					'asdf',
+					'/* hola amigos',
+					'fd*/friends'
+				].join( "\n" );
+				
+				var endCharPos = Parser.findMatchingEndComment( input, 5 );
+				expect( endCharPos ).to.equal( 24 );
+				expect( input.charAt( endCharPos ) ).to.equal( "f" );  // start of "friends"
+			} );
+			
+			
+			it( "should find the end of the *first* multi-line comment, when two are back-to-back", function() {
+				var input = [
+					'/* hola *//* amigo */'
 				].join( "" );
 				
-				expect( Parser.findMatchingEndComment( input, 5 ) ).to.equal( 24 );
+				var endCharPos = Parser.findMatchingEndComment( input, 0 );
+				expect( endCharPos ).to.equal( 10 );
+				expect( input.charAt( endCharPos ) ).to.equal( "/" );  // start of second multiline comment
+			} );
+			
+			
+			it( "should find the end of a multi-line comment that ends at the end of the string", function() {
+				var input = [
+					'/* hola */'
+				].join( "" );
+				
+				var endCharPos = Parser.findMatchingEndComment( input, 0 );
+				expect( endCharPos ).to.equal( input.length );
 			} );
 			
 			
@@ -311,17 +339,7 @@ describe( "Parser", function() {
 	
 	describe( "parse()", function() {
 		
-		it( "should parse a simple test file", function() {
-			
-		} );
-		
-	} );
-	
-	
-	
-	describe( "parseOuterSuite()", function() {
-		
-		it( "should find and parse the outer suite", function() {
+		it( "should parse input with an outer test Suite, and return a ParseResult", function() {
 			var input = [
 				'tests.unit.thePackage.add( new Ext.test.TestSuite( {',
 				'    name: "TheClass",',
@@ -339,7 +357,167 @@ describe( "Parser", function() {
 				'} ) );'
 			].join( "\n" );
 			
-			var suite = new Parser( input ).parseOuterSuite();
+			var parser = new Parser( input ),
+			    parseResult = parser.parse();
+			
+			expect( parseResult ).to.be.instanceOf( ParseResult );
+			expect( parseResult.getParseTree() ).to.be.instanceOf( SuiteNode );
+			expect( parseResult.getStartIdx() ).to.equal( 0 );
+			expect( parseResult.getEndIdx() ).to.equal( input.length );
+			
+			var suite = parseResult.getParseTree();
+			expect( suite.getName() ).to.equal( "unit.thePackage.TheClass" );
+			expect( suite.getChildren().length ).to.equal( 1 );
+			expect( suite.getChildren()[ 0 ].getName() ).to.equal( "method() test case" );
+			expect( suite.getChildren()[ 0 ].getTests().length ).to.equal( 2 );
+		} );
+		
+		
+		it( "should parse input with an outer TestCase", function() {
+			var input = [
+				'tests.unit.thePackage.add( new Ext.test.TestCase( {',
+				'    name: "TheClass",',
+				'    setUp : function() {',
+				'        this.a = 1;',
+				'        this.b = 1;',
+				'    },',
+				'    ',
+				'    tearDown : function() {',
+				'        this.a.destroy();',
+				'        this.b.destroy();',
+				'    },',
+				'    ',
+				'    _should : {',
+				'        ignore : {',
+				'            "test_something" : true,',
+				'            "something should happen" : true  // some comment',
+				'        },',
+				'        /* some comment */',
+				'        error : {',
+				'            "test_somethingElse" : "some error",',
+				'            "something else should happen" : ',
+				'                "some super-long error message"',
+				'        }',
+				'    },',
+				'    ',
+				'    ',
+				'    "something should happen" : function() {',
+				'        Y.Assert.areSame( 1, 1 );',
+				'    },',
+				'    ',
+				'    "something else should happen" : function() {',
+				'        Y.Assert.areSame( 1, 2 );',
+				'    },',
+				'    ',
+				'    test_something : function() {',
+				'        Y.Assert.areSame( 1, 3 );',
+				'    },',
+				'    ',
+				'    // Some comment',
+				'    test_somethingElse : function() {',
+				'        Y.Assert.areSame( 1, 4 );',
+				'    }',
+				'    ',
+				'    "something worthy of mordor should happen" : function() {',
+				'        Y.Assert.areSame( 1, 5 );',
+				'    }',
+				'} ) );'
+			].join( "\n" );
+			
+			var parser = new Parser( input ),
+			    parseResult = parser.parse();
+			
+			expect( parseResult ).to.be.instanceOf( ParseResult );
+			expect( parseResult.getParseTree() ).to.be.instanceOf( TestCaseNode );
+			expect( parseResult.getStartIdx() ).to.equal( 0 );
+			expect( parseResult.getEndIdx() ).to.equal( input.length );
+			
+			
+			
+			// Note: Same tests as parseOuterTestCase(), but checking here as well just in case
+			var testCaseNode = parseResult.getParseTree();
+			expect( testCaseNode.getName() ).to.equal( "unit.thePackage.TheClass" );
+			
+			expect( testCaseNode.getSetUp() ).to.not.equal( null );
+			expect( testCaseNode.getSetUp().getBody() ).to.match( /this\.a = 1;/ );
+			expect( testCaseNode.getSetUp().getBody() ).to.match( /this\.b = 1;/ );
+			
+			expect( testCaseNode.getTearDown() ).to.not.equal( null );
+			expect( testCaseNode.getTearDown().getBody() ).to.match( /this\.a\.destroy\(\);/ );
+			expect( testCaseNode.getTearDown().getBody() ).to.match( /this\.b\.destroy\(\);/ );
+			
+			// "Should" rules assertions
+			var should = testCaseNode.getShould();
+			expect( should ).to.not.equal( null );
+			expect( should.getIgnoredTests() ).to.not.equal( null );
+			expect( should.getIgnoredTests()[ 'test_something' ] ).to.equal( true );
+			expect( should.getIgnoredTests()[ 'something should happen' ] ).to.equal( true );
+			expect( should.getErrorTests()[ 'test_somethingElse' ] ).to.equal( "some error" );
+			expect( should.getErrorTests()[ 'something else should happen' ] ).to.equal( "some super-long error message" );
+			
+			// Tests Assertions
+			var tests = testCaseNode.getTests();
+			expect( tests.length ).to.equal( 5 );
+			expect( tests[ 0 ].getName() ).to.equal( "something should happen" );
+			expect( tests[ 1 ].getName() ).to.equal( "something else should happen" );
+			expect( tests[ 2 ].getName() ).to.equal( "something" );
+			expect( tests[ 3 ].getName() ).to.equal( "somethingElse" );
+			expect( tests[ 4 ].getName() ).to.equal( "something worthy of mordor should happen" );
+			
+			expect( parser.currentPos ).to.equal( input.length );  // currentPos should have been advanced to past the TestCase
+		} );
+		
+		
+		it( "should throw an error if the input does not have an outer Suite or TestCase", function() {
+			var input = [
+				'asdfasdfasfd',
+				'    name: "TheClass",',
+				'    items : [',
+				'        {',
+				'            name : "method() test case",',
+				'            "something should happen" : function() {',
+				'                var a = 1;',
+				'            },',
+				'            "something else should happen" : function() {',
+				'                var b = 2;',
+				'            }',
+				'        }',
+				'    ]',
+				'zzzzzzzzzzzz'
+			].join( "\n" );
+			
+			var parser = new Parser( input );
+			expect( function() {
+				parser.parse();
+			} ).to.Throw( "No outer Ext.Test Suite or TestCase found" );
+		} );
+		
+	} );
+	
+	
+	
+	describe( "parseOuterSuite()", function() {
+		
+		it( "should parse an outer suite", function() {
+			var input = [
+				'tests.unit.thePackage.add( new Ext.test.TestSuite( {',
+				'    name: "TheClass",',
+				'    items : [',
+				'        {',
+				'            name : "method() test case",',
+				'            "something should happen" : function() {',
+				'                var a = 1;',
+				'            },',
+				'            "something else should happen" : function() {',
+				'                var b = 2;',
+				'            }',
+				'        }',
+				'    ]',
+				'} ) );'
+			].join( "\n" );
+			
+			var parser = new Parser( input ),
+			    suite = parser.parseOuterSuite();
 			
 			expect( suite ).to.be.instanceOf( SuiteNode );
 			expect( suite.getName() ).to.equal( "unit.thePackage.TheClass" );
@@ -347,6 +525,140 @@ describe( "Parser", function() {
 			expect( suite.getChildren().length ).to.equal( 1 );
 			expect( suite.getChildren()[ 0 ].getName() ).to.equal( "method() test case" );
 			expect( suite.getChildren()[ 0 ].getTests().length ).to.equal( 2 );
+			
+			expect( parser.currentPos ).to.equal( input.length );  // currentPos should have been advanced to past the Suite
+		} );
+		
+	} );
+	
+	
+	
+	describe( "parseOuterTestCase()", function() {
+		
+		it( "should parse an outer test case", function() {
+			var input = [
+				'tests.unit.thePackage.add( new Ext.test.TestCase( {',
+				'    name: "TheClass",',
+				'    setUp : function() {',
+				'        this.a = 1;',
+				'        this.b = 1;',
+				'    },',
+				'    ',
+				'    tearDown : function() {',
+				'        this.a.destroy();',
+				'        this.b.destroy();',
+				'    },',
+				'    ',
+				'    _should : {',
+				'        ignore : {',
+				'            "test_something" : true,',
+				'            "something should happen" : true',
+				'        },',
+				'        error : {',
+				'            "test_somethingElse" : "some error",',
+				'            "something else should happen" : ',
+				'                "some super-long error message"',
+				'        }',
+				'    },',
+				'    ',
+				'    ',
+				'    "something should happen" : function() {',
+				'        Y.Assert.areSame( 1, 1 );',
+				'    },',
+				'    ',
+				'    "something else should happen" : function() {',
+				'        Y.Assert.areSame( 1, 2 );',
+				'    },',
+				'    ',
+				'    test_something : function() {',
+				'        Y.Assert.areSame( 1, 3 );',
+				'    },',
+				'    ',
+				'    test_somethingElse : function() {',
+				'        Y.Assert.areSame( 1, 4 );',
+				'    }',
+				'    ',
+				'    "something worthy of mordor should happen" : function() {',
+				'        Y.Assert.areSame( 1, 5 );',
+				'    }',
+				'} ) );'
+			].join( "\n" );
+			
+			var parser = new Parser( input ),
+			    testCaseNode = parser.parseOuterTestCase();
+			
+			expect( testCaseNode.getName() ).to.equal( "unit.thePackage.TheClass" );
+			
+			expect( testCaseNode.getSetUp() ).to.not.equal( null );
+			expect( testCaseNode.getSetUp().getBody() ).to.match( /this\.a = 1;/ );
+			expect( testCaseNode.getSetUp().getBody() ).to.match( /this\.b = 1;/ );
+			
+			expect( testCaseNode.getTearDown() ).to.not.equal( null );
+			expect( testCaseNode.getTearDown().getBody() ).to.match( /this\.a\.destroy\(\);/ );
+			expect( testCaseNode.getTearDown().getBody() ).to.match( /this\.b\.destroy\(\);/ );
+			
+			// "Should" rules assertions
+			var should = testCaseNode.getShould();
+			expect( should ).to.not.equal( null );
+			expect( should.getIgnoredTests() ).to.not.equal( null );
+			expect( should.getIgnoredTests()[ 'test_something' ] ).to.equal( true );
+			expect( should.getIgnoredTests()[ 'something should happen' ] ).to.equal( true );
+			expect( should.getErrorTests()[ 'test_somethingElse' ] ).to.equal( "some error" );
+			expect( should.getErrorTests()[ 'something else should happen' ] ).to.equal( "some super-long error message" );
+			
+			// Tests Assertions
+			var tests = testCaseNode.getTests();
+			expect( tests.length ).to.equal( 5 );
+			expect( tests[ 0 ].getName() ).to.equal( "something should happen" );
+			expect( tests[ 1 ].getName() ).to.equal( "something else should happen" );
+			expect( tests[ 2 ].getName() ).to.equal( "something" );
+			expect( tests[ 3 ].getName() ).to.equal( "somethingElse" );
+			expect( tests[ 4 ].getName() ).to.equal( "something worthy of mordor should happen" );
+			
+			expect( parser.currentPos ).to.equal( input.length );  // currentPos should have been advanced to past the TestCase
+		} );
+		
+		
+		it( "should parse an outer test case with only some child entities (just a setUp(), a test), and some comments in there", function() {
+			var input = [
+				'tests.unit.ui.formFields.add( new Ext.test.Case( {',
+			    "\tname: 'AbstractField',",
+				'\t',
+				'\tsetUp : function() {',
+				'\t\t// An AbstractField with implemented setValue() and getValue() methods used for testing.',
+				'\t\tthis.TestAbstractField = Class.extend( ui.formFields.AbstractField, {',
+				'\t\t\tsetValue : function( val ) { this.value = val; },',
+				'\t\t\tgetValue : function() { return this.value; }',
+				'\t\t} );',
+				'\t},',
+				'\t',
+				'\t',
+				'\t// --------------------------------',
+				'\t',
+				'\t/* blah blah',
+				'\t   blah blah */',
+				'\t',
+				'\t// Initialization tests',
+				'\t"The \'value\' should be undefined if it was not provided" : function() {',
+				'\t\tfor( var rendered = 0; rendered <= 1; rendered++ ) {',
+				'\t\t\tvar field = new this.TestAbstractField( {',
+				'\t\t\t\trenderTo: ( rendered ) ? document.body : undefined',
+				'\t\t\t\t// value: "my value"             -- intentionally leaving this here',
+				'\t\t\t} );',
+				'\t\t\t',
+				'\t\t\tY.Assert.isUndefined( field.getValue(), "the initial value should be undefined. rendered = " + !!rendered );',
+				'\t\t\t',
+				'\t\t\tfield.destroy();  // clean up',
+				'\t\t}',
+				'\t}',
+				'\t',
+				'} ) );'
+			].join( "\n" );
+			
+			var parser = new Parser( input ),
+			    testCaseNode = parser.parseOuterTestCase();
+			
+			
 		} );
 		
 	} );
@@ -937,6 +1249,116 @@ describe( "Parser", function() {
 	} );
 	
 	
+	describe( "skipWhitespaceAndComments()", function() {
+		
+		it( "should advance the `currentPos` index to the next non-whitespace character", function() {
+			var input = "  asdf";
+			
+			var parser = new Parser( input );
+			parser.currentPos = 0;  // for clarity
+			
+			parser.skipWhitespaceAndComments();
+			expect( parser.currentPos ).to.equal( 2 );
+		} );
+		
+		
+		it( "should advance the `currentPos` index to the next character after a single line comment (which should be *after* the linebreak)", function() {
+			var input = [
+				'// a comment',
+				'hello'
+			].join( '\n' );
+			
+			var parser = new Parser( input );
+			parser.currentPos = 0;  // for clarity
+			
+			parser.skipWhitespaceAndComments();
+			expect( parser.currentPos ).to.equal( 13 );
+			expect( input.charAt( parser.currentPos ) ).to.equal( 'h' );
+		} );
+		
+		
+		it( "should advance the `currentPos` index to the next character after a multiline comment", function() {
+			var input = [
+				'/* a multiline',
+				'comment */asdf',
+				'hello'
+			].join( '\n' );
+			
+			var parser = new Parser( input );
+			parser.currentPos = 0;  // for clarity
+			
+			parser.skipWhitespaceAndComments();
+			expect( parser.currentPos ).to.equal( 25 );
+		} );
+		
+		
+		it( "should advance the `currentPos` index past multiple single line comments in a row", function() {
+			var input = [
+				'// a comment',
+				'// another comment',
+				'hello'
+			].join( '\n' );
+			
+			var parser = new Parser( input );
+			parser.currentPos = 0;  // for clarity
+			
+			parser.skipWhitespaceAndComments();
+			expect( parser.currentPos ).to.equal( input.length - 5 );
+			expect( input.charAt( parser.currentPos ) ).to.equal( 'h' );
+		} );
+		
+		
+		it( "should advance the `currentPos` index past multiple multi-line comments in a row", function() {
+			var input = [
+				'/* a comment',
+				'that is long*/',
+				'/* another comment',
+				'that is long*/',
+				'hello'
+			].join( '\n' );
+			
+			var parser = new Parser( input );
+			parser.currentPos = 0;  // for clarity
+			
+			parser.skipWhitespaceAndComments();
+			expect( parser.currentPos ).to.equal( input.length - 5 );
+			expect( input.charAt( parser.currentPos ) ).to.equal( 'h' );
+		} );
+		
+		
+		it( "should advance the `currentPos` index past multiple comments and whitespace", function() {
+			var input = [
+				'/* a comment',
+				'that is long*/',
+				'/* another comment',
+				'that is long*/',
+				'     ',  // some more whitespace
+				'// a single ling comment',
+				'hello'
+			].join( '\n' );
+			
+			var parser = new Parser( input );
+			parser.currentPos = 0;  // for clarity
+			
+			parser.skipWhitespaceAndComments();
+			expect( parser.currentPos ).to.equal( input.length - 5 );
+			expect( input.charAt( parser.currentPos ) ).to.equal( 'h' );
+		} );
+		
+		
+		it( "should not advance the `currentPos` index if it is not at a comment begin sequence or whitespace char", function() {
+			var input = "asdf";
+			
+			var parser = new Parser( input );
+			parser.currentPos = 0;
+			
+			parser.skipWhitespaceAndComments();
+			expect( parser.currentPos ).to.equal( 0 );
+		} );
+		
+	} );
+	
+	
 	describe( "skipWhitespace()", function() {
 		
 		it( "should advance the `currentPos` index to the next non-whitespace character", function() {
@@ -969,6 +1391,61 @@ describe( "Parser", function() {
 			
 			parser.skipWhitespace();
 			expect( parser.currentPos ).to.equal( 6 );
+		} );
+		
+	} );
+	
+	
+	describe( "skipComments()", function() {
+		
+		it( "should advance the `currentPos` index to the next character after a single line comment (which should be a linebreak)", function() {
+			var input = [
+				'// a comment',
+				'hello'
+			].join( '\n' );
+			
+			var parser = new Parser( input );
+			parser.currentPos = 0;  // for clarity
+			
+			parser.skipComments();
+			expect( parser.currentPos ).to.equal( 12 );
+		} );
+		
+		
+		it( "should advance the `currentPos` index to the next character after a multiline comment", function() {
+			var input = [
+				'/* a multiline',
+				'comment */',
+				'hello'
+			].join( '\n' );
+			
+			var parser = new Parser( input );
+			parser.currentPos = 0;  // for clarity
+			
+			parser.skipComments();
+			expect( parser.currentPos ).to.equal( 25 );
+		} );
+		
+		
+		it( "should advance the `currentPos` index past multiple comments in a row", function() {
+			var input = "/* asdf *//* fdsa */";
+			
+			var parser = new Parser( input );
+			parser.currentPos = 0;  // for clarity
+			
+			parser.skipComments();
+			expect( parser.currentPos ).to.equal( input.length );
+		} );
+		
+		
+		it( "should not advance the `currentPos` index if it is not at a comment begin sequence", function() {
+			var input = "asdf";
+			
+			var parser = new Parser( input );
+			parser.currentPos = 0;
+			
+			parser.skipComments();
+			expect( parser.currentPos ).to.equal( 0 );
 		} );
 		
 	} );

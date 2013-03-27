@@ -1,4 +1,4 @@
-/*global RestProxy, describe, beforeEach, afterEach, it, expect */
+/*global RestProxy, _, describe, beforeEach, afterEach, it, expect */
 describe( "unit.persistence.RestProxy", function() {
 	
 	describe( "Test buildUrl()", function() {

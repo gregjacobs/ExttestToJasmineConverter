@@ -47,9 +47,9 @@ var ParseResult = Class.extend( Object, {
 	
 	/**
 	 * Retrieves the parse tree. This is a tree of {@link node.Node Nodes}, which at the top
-	 * level will be a {@link node.Suite Suite} node.
+	 * level will be either a {@link node.Suite Suite} node or a {@link node.TestCase TestCase} node.
 	 * 
-	 * @return {node.Suite}
+	 * @return {node.Node}
 	 */
 	getParseTree : function() {
 		return this.parseTree;

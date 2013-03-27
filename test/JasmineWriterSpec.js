@@ -10,6 +10,51 @@ var expect = require( 'chai' ).expect,
 
 describe( 'node.JasmineWriter', function() {
 	
+	describe( 'write()', function() {
+		
+		it( "should write the output of a Suite node", function() {
+			var jasmineWriter = new JasmineWriter();
+			
+			var suiteNode = new SuiteNode( "My Suite", [] );
+			
+			var output = jasmineWriter.write( suiteNode );
+			expect( output ).to.equal( [
+				'describe( "My Suite", function() {',
+				'} );'
+			].join( "\n" ) );
+		} );
+		
+		
+		it( "should write the output of a TestCase node", function() {
+			var jasmineWriter = new JasmineWriter();
+			
+			var testCaseNode = new TestCaseNode(
+				"My Test Case",
+				null,  // setUp
+				null,  // tearDown
+				null,  // should
+				[]     // tests
+			);
+			var output = jasmineWriter.write( testCaseNode );
+			
+			expect( output ).to.equal( [
+				'describe( "My Test Case", function() {',
+				'} );'
+			].join( "\n" ) );
+		} );
+		
+		
+		it( "should throw an error if a Suite or TestCase node is not passed in as its argument", function() {
+			var jasmineWriter = new JasmineWriter();
+			
+			expect( function() {
+				jasmineWriter.write( null );
+			} ).to.Throw( "A `Suite` or `TestCase` node was not passed in to write()" );
+		} );
+		
+	} );
+	
+	
 	describe( 'appendOutput()', function() {
 		
 		it( "should simply push a string to the output buffer when no indent level is set", function() {

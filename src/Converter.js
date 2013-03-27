@@ -37,8 +37,8 @@ var Converter = Class.extend( Object, {
 	
 	
 	/**
-	 * Adds JSHint globals for Jasmine, while removing those for Ext.Test and YUI. Modifies an existing
-	 * globals definition, or adds a new one if missing.
+	 * Adds JSHint globals for Lo-Dash (which some conversions use - underscore.js should be fine as well) and Jasmine, 
+	 * while removing those for Ext.Test and YUI. Modifies an existing globals definition, or adds a new one if missing.
 	 * 
 	 * @protected
 	 * @param {String} input
@@ -54,13 +54,13 @@ var Converter = Class.extend( Object, {
 			var globals = globalsRe.exec( input )[ 1 ],  // comma delimited list of the globals themselves. ex: "window, jQuery, ..."
 			    globalsArr = globals.split( /,\s*/ );
 			
-			// Remove 'Ext', 'Y', and 'tests' globals
+			// Remove 'Ext', 'Y', and 'tests' globals, and remove Lo-Dash/underscore.js for now, because we'll add it back.
 			globalsArr = globalsArr.filter( function( e ) {
-				return ( e !== 'Ext' && e !== 'Y' && e !== 'tests' );
+				return ( e !== 'Ext' && e !== 'Y' && e !== 'tests' && e !== '_' );
 			} );
 			
-			// Add the Jasmine 'describe', 'beforeEach', 'afterEach', 'it', and 'expect' globals
-			globalsArr = globalsArr.concat( [ 'describe', 'beforeEach', 'afterEach', 'it', 'expect' ] );
+			// Add the Lo-Dash global, and Jasmine 'describe', 'beforeEach', 'afterEach', 'it', and 'expect' globals
+			globalsArr = globalsArr.concat( [ '_', 'describe', 'beforeEach', 'afterEach', 'it', 'expect' ] );
 			
 			// Move JsMockito to the end of the list, if it is present. JsMockito feels like it should be after 
 			// the test harness globals
@@ -75,7 +75,7 @@ var Converter = Class.extend( Object, {
 			
 		} else {
 			// No existing globals, simply prepend the globals
-			return "/*global describe, beforeEach, afterEach, it, expect */\n" + input;
+			return "/*global _, describe, beforeEach, afterEach, it, expect */\n" + input;
 		}
 	},
 	

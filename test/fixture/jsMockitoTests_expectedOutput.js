@@ -1,4 +1,4 @@
-/*global RestProxy, describe, beforeEach, afterEach, it, expect, JsMockito */
+/*global RestProxy, _, describe, beforeEach, afterEach, it, expect, JsMockito */
 describe( "unit.persistence.RestProxy", function() {
 	
 	describe( "Test buildUrl()", function() {

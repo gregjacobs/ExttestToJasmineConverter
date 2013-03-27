@@ -49,13 +49,19 @@ var JasmineWriter = Class.extend( Object, {
 	/**
 	 * Writes the Jasmine output given the top level {@link node.Suite Suite} node.
 	 * 
-	 * @param {node.Suite} suiteNode The top level Suite node to start at.
+	 * @param {node.Suite/node.TestCase} outerNode The top level Suite or TestCase node to start at.
 	 * @return {String} The output.
 	 */
-	write : function( suiteNode ) {
+	write : function( outerNode ) {
 		var outputBuffer = [];
 		
-		this.appendSuite( suiteNode, outputBuffer );
+		if( outerNode instanceof SuiteNode ) {
+			this.appendSuite( outerNode, outputBuffer );
+		} else if( outerNode instanceof TestCaseNode ) {
+			this.appendTestCase( outerNode, outputBuffer );
+		} else {
+			throw new Error( "A `Suite` or `TestCase` node was not passed in to write()" );
+		}
 		
 		return outputBuffer.join( "\n" );
 	},

@@ -31,7 +31,17 @@ var TestCaseNode = Node.extend( {
 	
 	
 	/**
-	 * Retrieves the name.
+	 * Sets the name of the TestCase.
+	 * 
+	 * @param {String} name
+	 */
+	setName : function( name ) {
+		this.name = name;
+	},
+	
+	
+	/**
+	 * Retrieves the name of the TestCase.
 	 * 
 	 * @return {String}
 	 */
