@@ -12,3 +12,7 @@ Some Notes:
 
 1. Remove Suite-level (not TestCase level) setUp() / tearDown() methods. Parser doesn't handle these, and most are empty anyway.
    You'll get a parse error to know which ones need to be removed.
+   
+2. There is an issue if a setUp(), tearDown(), or a test defines a subclass, and uses the `this` reference inside it.
+   These will be changed to `thisSuite`, and may need to be changed back (to refer to the subclass instance, not the 
+   suite fixture).
