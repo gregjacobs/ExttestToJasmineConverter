@@ -600,6 +600,38 @@ describe( "Parser", function() {
 			expect( parser.currentPos ).to.equal( input.length );  // currentPos should have been advanced to past the Suite
 		} );
 		
+		
+		it( "should parse an outer suite with quotes in the name", function() {
+			var input = [
+				'tests.unit.thePackage.add( new Ext.test.TestSuite( {',
+				'    name: "TheClass \'is\' this test",',
+				'    items : [',
+				'        {',
+				'            name : "method() test case",',
+				'            "something should happen" : function() {',
+				'                var a = 1;',
+				'            },',
+				'            "something else should happen" : function() {',
+				'                var b = 2;',
+				'            }',
+				'        }',
+				'    ]',
+				'} ) );'
+			].join( "\n" );
+			
+			var parser = new Parser( input ),
+			    suite = parser.parseOuterSuite();
+			
+			expect( suite ).to.be.instanceOf( SuiteNode );
+			expect( suite.getName() ).to.equal( "unit.thePackage.TheClass 'is' this test" );
+			
+			expect( suite.getChildren().length ).to.equal( 1 );
+			expect( suite.getChildren()[ 0 ].getName() ).to.equal( "method() test case" );
+			expect( suite.getChildren()[ 0 ].getTests().length ).to.equal( 2 );
+			
+			expect( parser.currentPos ).to.equal( input.length );  // currentPos should have been advanced to past the Suite
+		} );
+		
 	} );
 	
 	
@@ -620,6 +652,10 @@ describe( "Parser", function() {
 				'        this.b.destroy();',
 				'    },',
 				'    ',
+				'    ',
+				'    // --------------------------------',    // a comment that should be ignored
+				'    ',
+				'    ',
 				'    _should : {',
 				'        ignore : {',
 				'            "test_something" : true,',
@@ -632,6 +668,9 @@ describe( "Parser", function() {
 				'        }',
 				'    },',
 				'    ',
+				'    ',
+				'    /* blah blah',        // another comment
+				'       blah blah */',     // that should be ignored
 				'    ',
 				'    "something should happen" : function() {',
 				'        Y.Assert.areSame( 1, 1 );',
@@ -690,48 +729,22 @@ describe( "Parser", function() {
 		} );
 		
 		
-		it( "should parse an outer test case with only some child entities (just a setUp(), a test), and some comments in there", function() {
+		it( "should parse an outer test case, with quotes in the name", function() {
 			var input = [
-				'tests.unit.ui.formFields.add( new Ext.test.Case( {',
-			    "\tname: 'AbstractField',",
-				'\t',
-				'\tsetUp : function() {',
-				'\t\t// An AbstractField with implemented setValue() and getValue() methods used for testing.',
-				'\t\tthis.TestAbstractField = Class.extend( ui.formFields.AbstractField, {',
-				'\t\t\tsetValue : function( val ) { this.value = val; },',
-				'\t\t\tgetValue : function() { return this.value; }',
-				'\t\t} );',
-				'\t},',
-				'\t',
-				'\t',
-				'\t// --------------------------------',
-				'\t',
-				'\t/* blah blah',
-				'\t   blah blah */',
-				'\t',
-				'\t// Initialization tests',
-				'\t"The \'value\' should be undefined if it was not provided" : function() {',
-				'\t\tfor( var rendered = 0; rendered <= 1; rendered++ ) {',
-				'\t\t\tvar field = new this.TestAbstractField( {',
-				'\t\t\t\trenderTo: ( rendered ) ? document.body : undefined',
-				'\t\t\t\t// value: "my value"             -- intentionally leaving this here',
-				'\t\t\t} );',
-				'\t\t\t',
-				'\t\t\tY.Assert.isUndefined( field.getValue(), "the initial value should be undefined. rendered = " + !!rendered );',
-				'\t\t\t',
-				'\t\t\tfield.destroy();  // clean up',
-				'\t\t}',
-				'\t}',
-				'\t',
+				'tests.unit.thePackage.add( new Ext.test.TestCase( {',
+				'    name: \'The "Class"\',',
+				'    setUp : function() {',
+				'        this.a = 1;',
+				'        this.b = 1;',
+				'    }',
 				'} ) );'
-			].join( "\n" );
+			].join( '\n' );
 			
 			var parser = new Parser( input ),
 			    testCaseNode = parser.parseOuterTestCase();
 			
-			
+			expect( testCaseNode.getName() ).to.equal( 'unit.thePackage.The "Class"' );
 		} );
-		
 	} );
 	
 	
@@ -834,13 +847,13 @@ describe( "Parser", function() {
 	
 	describe( "parseTestCase()", function() {
 		
-		it( "should parse a single TestCase, with all entities", function() {
+		it( "should parse a single TestCase, with all entities, even with a quote in the name", function() {
 			var input = [
 				'{',
 				'    /*',
 				'     * Test the getAttributes() static method',
 				'     */',
-				'    name : "Test some() method",',
+				'    name : "Test \'some()\' method",',
 				'    ',
 				'    setUp : function() {',
 				'        this.a = 1;',
@@ -891,7 +904,7 @@ describe( "Parser", function() {
 			    testCaseNode = parser.parseTestCase();
 			
 			expect( testCaseNode ).to.be.instanceOf( TestCaseNode );
-			expect( testCaseNode.getName() ).to.equal( "Test some() method" );
+			expect( testCaseNode.getName() ).to.equal( "Test 'some()' method" );
 			
 			expect( testCaseNode.getSetUp() ).to.not.equal( null );
 			expect( testCaseNode.getSetUp().getBody() ).to.match( /this\.a = 1;/ );
@@ -950,10 +963,10 @@ describe( "Parser", function() {
 		
 		
 		
-		it( "should parse a single TestCase that is the direct instantiation of an Ext.Test TestCase subclass", function() {
+		it( "should parse a single TestCase that is the direct instantiation of an Ext.Test TestCase subclass, even with a quote in the name", function() {
 			var input = [
 				'new packageName.SomeTest( {',
-				'    name : "Test some() method",',
+				'    name : \'Test "some()" method\',',
 				'    ',
 				'    setUp : function() {',
 				'        this.a = 1;',
@@ -1005,7 +1018,7 @@ describe( "Parser", function() {
 			
 			expect( testCaseNode ).to.be.instanceOf( DiTestCaseNode );
 			expect( testCaseNode.getCtorFnName() ).to.equal( "packageName.SomeTest" );
-			expect( testCaseNode.getName() ).to.equal( "Test some() method" );
+			expect( testCaseNode.getName() ).to.equal( 'Test "some()" method' );
 			
 			expect( testCaseNode.getSetUp() ).to.not.equal( null );
 			expect( testCaseNode.getSetUp().getBody() ).to.match( /this\.a = 1;/ );

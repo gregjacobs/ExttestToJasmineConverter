@@ -78,9 +78,10 @@ var Parser = Class.extend( Object, {
 	 * 
 	 * Capturing groups:
 	 * 
-	 * 1. The TestCase name.
+	 * 1. The TestCase name, if it is surrounded in single quotes (empty string if not)
+	 * 2. The TestCase name, if it is surrounded in double quotes (empty string if not)
 	 */
-	testCaseRe : /\{\s*(?:\/\*[\s\S]*?\*\/)?\s*name\s*:\s*['"](.*?)['"],?(?!\s*?ttype)/g,
+	testCaseRe : /\{\s*(?:\/\*[\s\S]*?\*\/)?\s*name\s*:\s*(?:'(.*?)'|"(.*?)"),?(?!\s*?ttype)/g,
 	
 	/**
 	 * @protected
@@ -100,9 +101,10 @@ var Parser = Class.extend( Object, {
 	 * Capturing groups:
 	 * 
 	 * 1. The package + name of the constructor function being executed. Ex: `ui.formFields.DropdownFieldTest`.
-	 * 2. The TestCase name.
+	 * 2. The TestCase name, if it is surrounded in single quotes (empty string if not)
+	 * 3. The TestCase name, if it is surrounded in double quotes (empty string if not)
 	 */
-	testCaseInstantiationRe : /new (.*?Test)\(\s*\{\s*name\s*:\s*['"](.*?)['"],?/g,
+	testCaseInstantiationRe : /new (.*?Test)\(\s*\{\s*name\s*:\s*(?:'(.*?)'|"(.*?)"),?/g,
 	
 	/**
 	 * @protected
@@ -651,7 +653,8 @@ var Parser = Class.extend( Object, {
 			// if there's a TestCase match at the current position
 			this.currentPos = testCaseMatch.index + testCaseMatch[ 0 ].length;  // advance the current position
 			
-			var testCaseItems = this.parseTestCaseItems();
+			var testCaseName = testCaseMatch[ 1 ] || testCaseMatch[ 2 ],  // depends if the name is surrounded in single or double quotes
+			    testCaseItems = this.parseTestCaseItems();
 			this.skipWhitespaceAndComments();
 			
 			if( this.peekChar() !== '}' ) {
@@ -659,7 +662,7 @@ var Parser = Class.extend( Object, {
 			}
 			this.currentPos++;  // advance past the closing brace '}'
 			
-			return new TestCaseNode( testCaseMatch[ 1 ], testCaseItems.should, testCaseItems.setUp, testCaseItems.tearDown, testCaseItems.tests );
+			return new TestCaseNode( testCaseName, testCaseItems.should, testCaseItems.setUp, testCaseItems.tearDown, testCaseItems.tests );
 		}
 	},
 	
@@ -702,7 +705,7 @@ var Parser = Class.extend( Object, {
 			this.currentPos = testCaseMatch.index + testCaseMatch[ 0 ].length;  // advance the current position
 			
 			var ctorFnName = testCaseMatch[ 1 ],
-			    testCaseName = testCaseMatch[ 2 ],
+			    testCaseName = testCaseMatch[ 2 ] || testCaseMatch[ 3 ],  // depends if the name is surrounded in single or double quotes
 			    testCaseItems = this.parseTestCaseItems();
 			this.skipWhitespaceAndComments();
 			
