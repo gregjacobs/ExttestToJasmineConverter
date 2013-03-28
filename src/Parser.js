@@ -72,7 +72,7 @@ var Parser = Class.extend( Object, {
 	 * @protected
 	 * @property {RegExp} testCaseRe
 	 * 
-	 * The regular expression used to match inner suites. This is as opposed to the {@link #outerSuiteRe outer suite},
+	 * The regular expression used to match TestCases. This is as opposed to the {@link #outerTestCaseRe outer test case},
 	 * where there should only be one.
 	 * 
 	 * Capturing groups:
@@ -80,6 +80,27 @@ var Parser = Class.extend( Object, {
 	 * 1. The TestCase name.
 	 */
 	testCaseRe : /\{\s*(?:\/\*[\s\S]*?\*\/)?\s*name\s*:\s*['"](.*?)['"],?(?!\s*?ttype)/g,
+	
+	/**
+	 * @protected
+	 * @property {RegExp} testCaseInstantiationRe
+	 * 
+	 * The regular expression used to match TestCases that are direct instantiations of a TestCase subclass.
+	 * This is done in some tests.
+	 * 
+	 * For example:
+	 * 
+	 *     new ui.formFields.DropdownFieldTest( {
+	 *         name : "Dropdown Test"
+	 *         
+	 *         ...
+	 *     } )
+	 * 
+	 * Capturing groups:
+	 * 
+	 * 1. The TestCase name.
+	 */
+	testCaseInstantiationRe : /new .*?Test\(\s*\{\s*name\s*:\s*['"](.*?)['"],?/g,
 	
 	/**
 	 * @protected
@@ -565,7 +586,7 @@ var Parser = Class.extend( Object, {
 			while( this.peekChar() !== ']' ) {
 				var item = this.parseSuite() || this.parseTestCase();
 				if( !item ) {
-					throw new Error( "Expected a Suite or TestCase while parsing the items of a Suite. Was looking at text: `" + this.input.substr( this.currentPos, 50 ) + "`  Starting at character " + this.currentPos );
+					this.throwParseError( "Expected a Suite or TestCase while parsing the items of a Suite." );
 				}
 				items.push( item );
 				
@@ -594,7 +615,7 @@ var Parser = Class.extend( Object, {
 	parseTestCase : function() {
 		this.skipWhitespaceAndComments();
 		
-		var testCaseMatch = this.getMatch( this.testCaseRe ),  // attempts to match the regex at the currentPos
+		var testCaseMatch = this.getMatch( this.testCaseRe ) || this.getMatch( this.testCaseInstantiationRe ),  // attempts to match either regex at the currentPos
 		    testCaseNode = null;
 		
 		if( testCaseMatch !== null ) {  // if there's a TestCase match at the current position
@@ -604,10 +625,18 @@ var Parser = Class.extend( Object, {
 			testCaseNode = this.parseTestCaseItems();
 			testCaseNode.setName( testCaseMatch[ 1 ] );
 			
-			if( this.peekChar() !== '}' ) {
-				throw new Error( "Expected closing brace '}' for the end of a TestCase, but found " + this.peekChar() + " instead." );
+			this.skipWhitespaceAndComments();
+			
+			// Check for the end of the TestCase. If it was the "regular" test case (nested anonymous object), then we're
+			// just looking for an end `}`. If it was a "direct instantiation" test case, then we're looking for `} )`.
+			var endTestCaseSeqRe = /\}\s*\)|\}/g;
+			endTestCaseSeqRe.lastIndex = this.currentPos;
+			
+			var endTestCaseMatch = this.getMatch( endTestCaseSeqRe );
+			if( !endTestCaseMatch ) {
+				this.throwParseError( "Expected closing brace '}' for the end of a TestCase." );
 			}
-			this.currentPos++;  // advanced past the closing brace '}'
+			this.currentPos += endTestCaseMatch[ 0 ].length;  // advanced past the closing brace '}'
 		}
 		
 		return testCaseNode;
@@ -639,7 +668,7 @@ var Parser = Class.extend( Object, {
 			} else if( obj = this.parseTest() ) {
 				tests.push( obj );
 			} else {
-				throw new Error( "Expected a setUp(), tearDown(), _should block, or a Test while parsing the items of a TestCase. Was looking at text: `" + this.input.substr( this.currentPos, 50 ) + "`  Starting at character " + this.currentPos );
+				this.throwParseError( "Expected a setUp(), tearDown(), _should block, or a Test while parsing the items of a TestCase." );
 			}
 			
 			if( this.peekChar() === ',' )
@@ -763,6 +792,26 @@ var Parser = Class.extend( Object, {
 			this.currentPos = closeBraceIdx + 1;
 		}
 		return testNode;
+	},
+	
+	
+	/**
+	 * Throws an error and gives information about the position of where the parser was looking.
+	 * 
+	 * @param {String} message
+	 * @throws {Error} An Error object detailing where the parse error occurred. Always throws.
+	 */
+	throwParseError : function( message ) {
+		var line = this.input.substring( 0, this.currentPos ).match( /\n/g ).length + 1;  // plus 1 because we start on line 1, not line 0
+		throw new Error( [
+			"",
+			"-----------------------------------------------------------",
+			"A parse error occurred. Message: '" + message + "'",
+			"Was looking at text: `" + this.input.substr( this.currentPos, 50 ) + "`",
+			"Starting at character " + this.currentPos,
+			"On line: " + line,
+			"-----------------------------------------------------------"
+		].join( '\n' ) );
 	},
 	
 	

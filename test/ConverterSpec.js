@@ -112,6 +112,15 @@ describe( "Converter", function() {
 			expect( convertedInput ).to.equal( expectedOutput );
 		} );
 	
+		
+		it( "should convert a file with 'direct instantiation' test cases (instantiations of Ext.Test TestCase subclasses)", function() {
+			var input = fs.readFileSync( __dirname + '/sample/directTestCaseInstantiation_input.js', 'utf8' ),
+			    expectedOutput = fs.readFileSync( __dirname + '/sample/directTestCaseInstantiation_expectedOutput.js', 'utf8' );
+			
+			var convertedInput = converter.convert( input );
+			expect( convertedInput ).to.equal( expectedOutput );
+		} );
+	
 	} );
 	
 } );

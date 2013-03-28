@@ -33,9 +33,13 @@ var CodeNode = Node.extend( {
 		// Remove all leading and trailing newlines, and trailing tabs and spaces if any
 		code = code.replace( /^[\n\r]*|[\n\r\t ]*$/g, '' );
 		
+		// Remove any initial line of whitespace. This can happen if there was trailing whitespace after the open brace of the 
+		// function for this code body
+		code = code.replace( /^[\t ]*\r?\n/, '' );
+		
 		// Find the indent to the first line of code. This is what we'll remove from the beginning
 		// of each line, in order to maintain inner indents.
-		var initialIndent = code.match( /^\s*/ )[ 0 ],                // find the initial indent
+		var initialIndent = code.match( /^[\t ]*/m )[ 0 ],            // find the initial indent
 		    removeIndentRe = new RegExp( "^" + initialIndent, 'gm' ); // create a RegExp to remove the initial indent from all lines
 		code = code.replace( removeIndentRe, '' );
 		

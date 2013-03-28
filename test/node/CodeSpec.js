@@ -55,6 +55,25 @@ describe( 'node.Code', function() {
 			].join( "\n" ) );
 		} );
 		
+		
+		it( "should remove any initial lines of whitespace before determining the indent level to remove", function() {
+			var input = [
+				'\t\t\t\t\t\t\t\t',
+				'\t\t\tvar a = 1;',
+				'\t\t\tfor( var i = 0; i < 10; i++ ) {',
+				'\t\t\t\tvar b = 2;',
+				'\t\t\t}\r\n\r\n\r\n'
+			].join( "\n" );
+			
+			var codeNode = new ConcreteCodeNode( input );
+			expect( codeNode.getBody() ).to.equal( [
+				'var a = 1;',
+				'for( var i = 0; i < 10; i++ ) {',
+				'\tvar b = 2;',
+				'}'
+			].join( "\n" ) );
+		} );
+		
 	} );
 	
 } );
