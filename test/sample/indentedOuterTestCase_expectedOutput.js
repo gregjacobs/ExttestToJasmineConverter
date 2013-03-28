@@ -4,9 +4,11 @@ define( [
 ], function( ModelCache ) {
 	
 	describe( "unit.data.ModelCache", function() {
-		var thisSuite = {};
+		var thisSuite;
 		
 		beforeEach( function() {
+			thisSuite = {};
+			
 			thisSuite.MockModel1 = function() {};
 			thisSuite.MockModel1.__Data_modelTypeId = "1";
 			

@@ -1,2 +1,2 @@
 @echo off
-node ..\node_modules\mocha\bin\mocha --reporter spec ..\test\ ..\test\node\
+node ..\node_modules\mocha\bin\mocha --reporter spec ..\test\ ..\test\node

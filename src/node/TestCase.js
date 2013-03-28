@@ -15,17 +15,17 @@ var TestCaseNode = Node.extend( {
 	
 	/**
 	 * @constructor
-	 * @param {String} name The name of the Suite.
+	 * @param {String} name The name of the TestCase.
+	 * @param {node.Should} should The Should node, if any. `null` for none.
 	 * @param {node.SetUp} setUp The SetUp node, if any. `null` for none.
 	 * @param {node.TearDown} tearDown The TearDown node, if any. `null` for none.
-	 * @param {node.Should} should The Should node, if any. `null` for none.
 	 * @param {node.Test[]} tests The child tests.
 	 */
-	constructor : function( name, setUp, tearDown, should, tests ) {
+	constructor : function( name, should, setUp, tearDown, tests ) {
 		this.name = name;
+		this.should = should;
 		this.setUp = setUp;
 		this.tearDown = tearDown;
-		this.should = should;
 		this.tests = tests;
 	},
 	
@@ -53,7 +53,7 @@ var TestCaseNode = Node.extend( {
 	/**
 	 * Retrieves the Should node (if there is one).
 	 * 
-	 * @return {node.Should} The Should node, or null if there was no _should object.
+	 * @return {node.Should} The Should node, or `null` if there was no _should object.
 	 */
 	getShould : function() {
 		return this.should;
@@ -63,7 +63,7 @@ var TestCaseNode = Node.extend( {
 	/**
 	 * Retrieves the SetUp node (if there is one).
 	 * 
-	 * @return {node.SetUp} The SetUp node, or null if there was no setUp() method.
+	 * @return {node.SetUp} The SetUp node, or `null` if there was no setUp() method.
 	 */
 	getSetUp : function() {
 		return this.setUp;
@@ -73,7 +73,7 @@ var TestCaseNode = Node.extend( {
 	/**
 	 * Retrieves the TearDown node (if there is one).
 	 * 
-	 * @return {node.TearDown} The TearDown node, or null if there was no tearDown() method.
+	 * @return {node.TearDown} The TearDown node, or `null` if there was no tearDown() method.
 	 */
 	getTearDown : function() {
 		return this.tearDown;
@@ -87,28 +87,6 @@ var TestCaseNode = Node.extend( {
 	 */
 	getTests : function() {
 		return this.tests || [];
-	},
-	
-	
-	/**
-	 * Accepts a Visitor.
-	 * 
-	 * @param {node.Visitor} visitor
-	 */
-	accept : function( visitor ) {
-		visitor.visitTestCase( this );
-		
-		var should = this.getShould(),
-		    setUp = this.getSetUp(),
-		    tearDown = this.getTearDown(),
-		    tests = this.getTests();
-		
-		if( should ) should.accept( visitor );
-		if( setUp ) setUp.accept( visitor );
-		if( tearDown ) tearDown.accept( visitor );
-		tests.forEach( function( test ) {
-			test.accept( visitor );
-		} );
 	}
 	
 } );

@@ -113,9 +113,26 @@ describe( "Converter", function() {
 		} );
 	
 		
-		xit( "should convert a file with 'direct instantiation' test cases (instantiations of Ext.Test TestCase subclasses)", function() {
+		it( "should convert a file with 'direct instantiation' test cases (instantiations of Ext.Test TestCase subclasses)", function() {
 			var input = fs.readFileSync( __dirname + '/sample/directTestCaseInstantiation_input.js', 'utf8' ),
 			    expectedOutput = fs.readFileSync( __dirname + '/sample/directTestCaseInstantiation_expectedOutput.js', 'utf8' );
+			
+			// Strip all carriage returns off of the input and expected output. They needlessly get in the way.
+			input = input.replace( /\r/g, '' );
+			expectedOutput = expectedOutput.replace( /\r/g, '' );
+			
+			var convertedInput = converter.convert( input );
+			expect( convertedInput ).to.equal( expectedOutput );
+		} );
+	
+		
+		it( "should convert a file with 'direct instantiation' test cases (instantiations of Ext.Test TestCase subclasses), with their own setUp and tearDown methods under those", function() {
+			var input = fs.readFileSync( __dirname + '/sample/directTestCaseInstantiation2_input.js', 'utf8' ),
+			    expectedOutput = fs.readFileSync( __dirname + '/sample/directTestCaseInstantiation2_expectedOutput.js', 'utf8' );
+			
+			// Strip all carriage returns off of the input and expected output. They needlessly get in the way.
+			input = input.replace( /\r/g, '' );
+			expectedOutput = expectedOutput.replace( /\r/g, '' );
 			
 			var convertedInput = converter.convert( input );
 			expect( convertedInput ).to.equal( expectedOutput );

@@ -39,20 +39,6 @@ var SuiteNode = Node.extend( {
 	 */
 	getChildren : function() {
 		return this.children || [];
-	},
-	
-	
-	/**
-	 * Accepts a Visitor.
-	 * 
-	 * @param {node.Visitor} visitor
-	 */
-	accept : function( visitor ) {
-		visitor.visitSuite( this );
-		
-		this.getChildren().forEach( function( child ) {
-			child.accept( visitor );
-		} );
 	}
 	
 } );

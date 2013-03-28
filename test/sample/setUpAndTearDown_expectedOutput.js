@@ -2,9 +2,11 @@
 describe( "unit.persistence.RestProxy", function() {
 	
 	describe( "Test buildUrl()", function() {
-		var thisSuite = {};
+		var thisSuite;
 		
 		beforeEach( function() {
+			thisSuite = {};
+			
 			thisSuite.proxy = new RestProxy( {
 				urlRoot : '/testUrl',
 				appendId : false

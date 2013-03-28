@@ -15,6 +15,17 @@ ui.formFields.DropdownFieldTest = Jux.extend( Ext.test.Case, {
 describe( "unit.ui.formFields.DropdownField", function() {
 	
 	describe( "Test Initialization", function() {
+		var thisSuite;
+		
+		beforeEach( function() {
+			thisSuite = new ui.formFields.DropdownFieldTest();
+			thisSuite.setUp();
+		} );
+		
+		afterEach( function() {
+			thisSuite.tearDown();
+		} );
+		
 		
 		it( "The initial value for the field with no 'value' config, and no options, should be undefined", function() {
 			for( var rendered = 0; rendered <= 1; rendered++ ) {
@@ -181,6 +192,17 @@ describe( "unit.ui.formFields.DropdownField", function() {
 	
 	
 	describe( "Test setValue()", function() {
+		var thisSuite;
+		
+		beforeEach( function() {
+			thisSuite = new ui.formFields.DropdownFieldTest();
+			thisSuite.setUp();
+		} );
+		
+		afterEach( function() {
+			thisSuite.tearDown();
+		} );
+		
 		
 		it( "The value should not be set with 'non-existent' value.", function() {
 			for( var testNum = 0; testNum <= 1; testNum++ ) {

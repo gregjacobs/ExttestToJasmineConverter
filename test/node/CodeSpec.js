@@ -5,8 +5,7 @@ var expect = require( 'chai' ).expect,
 describe( 'node.Code', function() {
 	
 	var ConcreteCodeNode = CodeNode.extend( {
-		// Implement abstract methods
-		accept : function() {}
+		
 	} );
 	
 	

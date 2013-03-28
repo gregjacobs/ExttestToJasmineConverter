@@ -2,7 +2,6 @@
 /*jshint boss:true */
 var Class = require( './Class' ),
     Parser = require( './Parser' ),
-    JasmineTransformVisitor = require( './node/JasmineTransformVisitor' ),
     JasmineWriter = require( './JasmineWriter' );
 
 var Converter = Class.extend( Object, {
@@ -23,13 +22,9 @@ var Converter = Class.extend( Object, {
 		var parseResult = this.parse( str ),
 		    parseTree = parseResult.getParseTree();
 		
-		var transformVisitor = new JasmineTransformVisitor();
-		parseTree.accept( transformVisitor );
-		
 		var jasmineWriter = new JasmineWriter( {
 			indentLevel: parseResult.getIndentLevel()  // start at the indent level that the outer Suite or TestCase was at
 		} );
-		
 		var jasmineOutput = jasmineWriter.write( parseTree );
 		
 		// Replace the section of code in the input that held the Ext.Test suite, with the Jasmine output

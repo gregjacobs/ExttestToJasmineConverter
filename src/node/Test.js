@@ -29,16 +29,6 @@ var TestNode = CodeNode.extend( {
 	 */
 	getName : function() {
 		return this.name;
-	},
-	
-	
-	/**
-	 * Accepts a Visitor.
-	 * 
-	 * @param {node.Visitor} visitor
-	 */
-	accept : function( visitor ) {
-		visitor.visitTest( this );
 	}
 	
 } );

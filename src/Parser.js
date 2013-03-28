@@ -1,13 +1,14 @@
 /*global require, module */
 /*jshint boss:true, evil:true */
 var Class = require( './Class' ),
-    ParseResult  = require( './ParseResult' ),
-    SuiteNode    = require( './node/Suite' ),
-    TestCaseNode = require( './node/TestCase' ),
-    ShouldNode   = require( './node/Should' ),
-    SetUpNode    = require( './node/SetUp' ),
-    TearDownNode = require( './node/TearDown' ),
-    TestNode     = require( './node/Test' );
+    ParseResult    = require( './ParseResult' ),
+    SuiteNode      = require( './node/Suite' ),
+    TestCaseNode   = require( './node/TestCase' ),
+    DiTestCaseNode = require( '../src/node/DiTestCase' ),
+    ShouldNode     = require( './node/Should' ),
+    SetUpNode      = require( './node/SetUp' ),
+    TearDownNode   = require( './node/TearDown' ),
+    TestNode       = require( './node/Test' );
 
 
 /**
@@ -98,9 +99,10 @@ var Parser = Class.extend( Object, {
 	 * 
 	 * Capturing groups:
 	 * 
-	 * 1. The TestCase name.
+	 * 1. The package + name of the constructor function being executed. Ex: `ui.formFields.DropdownFieldTest`.
+	 * 2. The TestCase name.
 	 */
-	testCaseInstantiationRe : /new .*?Test\(\s*\{\s*name\s*:\s*['"](.*?)['"],?/g,
+	testCaseInstantiationRe : /new (.*?Test)\(\s*\{\s*name\s*:\s*['"](.*?)['"],?/g,
 	
 	/**
 	 * @protected
@@ -512,8 +514,8 @@ var Parser = Class.extend( Object, {
 		} else {
 			this.currentPos = outerTestCaseMatch.index + outerTestCaseMatch[ 0 ].length;
 			
-			var testCaseNode = this.parseTestCaseItems();
-			testCaseNode.setName( outerTestCaseMatch[ 2 ] + '.' + outerTestCaseMatch[ 3 ] );  // package name + class name
+			var testCaseItems = this.parseTestCaseItems(),
+			    testCaseName = outerTestCaseMatch[ 2 ] + '.' + outerTestCaseMatch[ 3 ];  // package name + class name
 			
 			var endOuterTestCaseSeqMatch = this.getMatch( /\}\s*\)\s*\);/g );
 			if( !endOuterTestCaseSeqMatch ) {
@@ -521,7 +523,7 @@ var Parser = Class.extend( Object, {
 			}
 			this.currentPos += endOuterTestCaseSeqMatch[ 0 ].length;  // advanced past the closing sequence
 			
-			return testCaseNode;
+			return new TestCaseNode( testCaseName, testCaseItems.should, testCaseItems.setUp, testCaseItems.tearDown, testCaseItems.tests );
 		}
 	},
 	
@@ -612,61 +614,137 @@ var Parser = Class.extend( Object, {
 	 * @return {node.TestCase} The TestCase node parsed at {@link #currentPos}, or `null` if a TestCase was
 	 *   not matched.
 	 */
-	parseTestCase : function() {
-		this.skipWhitespaceAndComments();
+	parseTestCase : function() {		
+		return this.parseAnonymousTestCase() || this.parseDirectInstantiationTestCase();
+	},
+	
+	
+	/**
+	 * Parses an anonymous TestCase at the {@link #currentPos}, or returns `null` if an anonymous TestCase was 
+	 * not matched. An anonymous TestCase is a TestCase defined by an object literal. Ex:
+	 * 
+	 *     {
+	 *         name : "My Test Case",
+	 *         
+	 *         "something should happen" : function() {
+	 *             // ...
+	 *         }
+	 *     }
+	 * 
+	 * This is opposed to having a {@link #parseDirectInstantiationTestCase direct instantiation} TestCase.
+	 * 
+	 * @protected
+	 * @return node.TestCase} The TestCase node parsed at {@link #currentPos}, or `null` if a TestCase was
+	 *   not matched.
+	 */
+	parseAnonymousTestCase : function() {
+		this.skipWhitespaceAndComments();		
 		
-		var testCaseMatch = this.getMatch( this.testCaseRe ),// || this.getMatch( this.testCaseInstantiationRe ),  // attempts to match either regex at the currentPos
-		    testCaseNode = null;
+		var testCaseMatch = this.getMatch( this.testCaseRe );  // attempts to match the regex at the currentPos
 		
-		if( testCaseMatch !== null ) {  // if there's a TestCase match at the current position
-			// advance the current position
-			this.currentPos = testCaseMatch.index + testCaseMatch[ 0 ].length;
+		if( !testCaseMatch ) {
+			return null;
 			
-			testCaseNode = this.parseTestCaseItems();
-			testCaseNode.setName( testCaseMatch[ 1 ] );
+		} else {
+			// if there's a TestCase match at the current position
+			this.currentPos = testCaseMatch.index + testCaseMatch[ 0 ].length;  // advance the current position
 			
+			var testCaseItems = this.parseTestCaseItems();
 			this.skipWhitespaceAndComments();
 			
-			// Check for the end of the TestCase. If it was the "regular" test case (nested anonymous object), then we're
-			// just looking for an end `}`. If it was a "direct instantiation" test case, then we're looking for `} )`.
-			var endTestCaseSeqRe = /\}\s*\)|\}/g;
-			endTestCaseSeqRe.lastIndex = this.currentPos;
+			if( this.peekChar() !== '}' ) {
+				this.throwParseError( "Expected closing brace '}' for the end of an anonymous (object literal) TestCase." );
+			}
+			this.currentPos++;  // advance past the closing brace '}'
 			
-			var endTestCaseMatch = this.getMatch( endTestCaseSeqRe );
+			return new TestCaseNode( testCaseMatch[ 1 ], testCaseItems.should, testCaseItems.setUp, testCaseItems.tearDown, testCaseItems.tests );
+		}
+	},
+	
+	
+	/**
+	 * Parses a "direct instantiation" TestCase at the {@link #currentPos}, or returns `null` if a direct instantiation 
+	 * TestCase was not matched. A "direct instantiation" TestCase is a TestCase which is the instantiation of an 
+	 * ``Ext.test.Case` subclass. Ex:
+	 * 
+	 *     my.testcase.SubclassTest = Class.extend( Ext.test.Case, {
+	 *         ...
+	 *     } );
+	 *     
+	 *     
+	 *     // (Inside a test suite)
+	 *     new my.testcase.SubclassTest( {
+	 *         name : "My Test Case",
+	 *         
+	 *         "something should happen" : function() {
+	 *             // ...
+	 *         }
+	 *     } )
+	 * 
+	 * This is opposed to having an {@link #parseAnonymousTestCase anonymous} TestCase.
+	 * 
+	 * @protected
+	 * @return node.TestCase} The TestCase node parsed at {@link #currentPos}, or `null` if a TestCase was
+	 *   not matched.
+	 */
+	parseDirectInstantiationTestCase : function() {
+		this.skipWhitespaceAndComments();		
+		
+		var testCaseMatch = this.getMatch( this.testCaseInstantiationRe );  // attempts to match the regex at the currentPos
+		
+		if( !testCaseMatch ) {
+			return null;
+			
+		} else {
+			// if there's a TestCase match at the current position
+			this.currentPos = testCaseMatch.index + testCaseMatch[ 0 ].length;  // advance the current position
+			
+			var ctorFnName = testCaseMatch[ 1 ],
+			    testCaseName = testCaseMatch[ 2 ],
+			    testCaseItems = this.parseTestCaseItems();
+			this.skipWhitespaceAndComments();
+			
+			// Check for the end of the TestCase. We're looking for `} )`
+			var endTestCaseMatch = this.getMatch( /\}\s*\)/g );
 			if( !endTestCaseMatch ) {
-				this.throwParseError( "Expected closing brace '}' for the end of a TestCase." );
+				this.throwParseError( "Expected closing sequence '} )' for the end of a direct instantiation TestCase." );
 			}
 			this.currentPos += endTestCaseMatch[ 0 ].length;  // advanced past the closing brace '}'
+			
+			return new DiTestCaseNode( ctorFnName, testCaseName, testCaseItems.should, testCaseItems.setUp, testCaseItems.tearDown, testCaseItems.tests );
 		}
-		
-		return testCaseNode;
 	},
 	
 	
 	/**
 	 * Parses the items of a TestCase at the {@link #currentPos}.
 	 * 
-	 * @return {node.TestCase} A TestCase node with the items of the TestCase (the _should, setUp(), tearDown(), and tests),
-	 *   but without the name. The name should be added afterwards.
+	 * @return {Object} An anonymous object with the following properties:
+	 * @return {node.Should} return.should The Should node, if one existed. Will be `null` otherwise.
+	 * @return {node.SetUp} return.setUp The SetUp node, if one existed. Will be `null` otherwise.
+	 * @return {node.TearDown} return.tearDown The TearDown node, if one existed. Will be `null` otherwise.
+	 * @return {node.Test[]} return.tests The Test nodes. Will be an empty array if none existed.
 	 */
 	parseTestCaseItems : function() {
 		this.skipWhitespaceAndComments();
 		
-		var setUpNode = null,
-		    tearDownNode = null,
-		    shouldNode = null,
-		    tests = [];
+		var testCaseItems = {
+			should   : null,
+			setUp    : null,
+			tearDown : null,
+			tests    : []
+		};
 		
 		while( this.peekChar() !== '}' ) {
 			var obj = null;
-			if( obj = this.parseSetUp() ) {
-				setUpNode = obj;
+			if( obj = this.parseShould() ) {
+				testCaseItems.should = obj;
+			} else if( obj = this.parseSetUp() ) {
+				testCaseItems.setUp = obj;
 			} else if( obj = this.parseTearDown() ) {
-				tearDownNode = obj;
-			} else if( obj = this.parseShould() ) {
-				shouldNode = obj;
+				testCaseItems.tearDown = obj;
 			} else if( obj = this.parseTest() ) {
-				tests.push( obj );
+				testCaseItems.tests.push( obj );
 			} else {
 				this.throwParseError( "Expected a setUp(), tearDown(), _should block, or a Test while parsing the items of a TestCase." );
 			}
@@ -676,7 +754,7 @@ var Parser = Class.extend( Object, {
 			this.skipWhitespaceAndComments();
 		}
 		
-		return new TestCaseNode( "", setUpNode, tearDownNode, shouldNode, tests );
+		return testCaseItems;
 	},
 	
 	
@@ -805,12 +883,12 @@ var Parser = Class.extend( Object, {
 		var line = this.input.substring( 0, this.currentPos ).match( /\n/g ).length + 1;  // plus 1 because we start on line 1, not line 0
 		throw new Error( [
 			"",
-			"-----------------------------------------------------------",
+			"=========================================================================",
 			"A parse error occurred. Message: '" + message + "'",
 			"Was looking at text: `" + this.input.substr( this.currentPos, 50 ) + "`",
 			"Starting at character " + this.currentPos,
 			"On line: " + line,
-			"-----------------------------------------------------------"
+			"========================================================================="
 		].join( '\n' ) );
 	},
 	

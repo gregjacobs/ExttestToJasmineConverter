@@ -1,15 +1,16 @@
 /*global require, __dirname, describe, xdescribe, beforeEach, afterEach, it, xit */
 /*jshint sub:true */
-var expect       = require( 'chai' ).expect,
-    fs           = require( 'fs' ),
-    Parser       = require( '../src/Parser' ),
-    ParseResult  = require( '../src/ParseResult' ),
-    SuiteNode    = require( '../src/node/Suite' ),
-    TestCaseNode = require( '../src/node/TestCase' ),
-    ShouldNode   = require( '../src/node/Should' ),
-    SetUpNode    = require( '../src/node/SetUp' ),
-    TearDownNode = require( '../src/node/TearDown' ),
-    TestNode     = require( '../src/node/Test' );
+var expect         = require( 'chai' ).expect,
+    fs             = require( 'fs' ),
+    Parser         = require( '../src/Parser' ),
+    ParseResult    = require( '../src/ParseResult' ),
+    SuiteNode      = require( '../src/node/Suite' ),
+    TestCaseNode   = require( '../src/node/TestCase' ),
+    DiTestCaseNode = require( '../src/node/DiTestCase' ),
+    ShouldNode     = require( '../src/node/Should' ),
+    SetUpNode      = require( '../src/node/SetUp' ),
+    TearDownNode   = require( '../src/node/TearDown' ),
+    TestNode       = require( '../src/node/Test' );
 
 
 describe( "Parser", function() {
@@ -949,7 +950,7 @@ describe( "Parser", function() {
 		
 		
 		
-		xit( "should parse a single TestCase that is the direct instantiation of an Ext.Test TestCase subclass", function() {
+		it( "should parse a single TestCase that is the direct instantiation of an Ext.Test TestCase subclass", function() {
 			var input = [
 				'new packageName.SomeTest( {',
 				'    name : "Test some() method",',
@@ -1002,7 +1003,8 @@ describe( "Parser", function() {
 			var parser = new Parser( input ),
 			    testCaseNode = parser.parseTestCase();
 			
-			expect( testCaseNode ).to.be.instanceOf( TestCaseNode );
+			expect( testCaseNode ).to.be.instanceOf( DiTestCaseNode );
+			expect( testCaseNode.getCtorFnName() ).to.equal( "packageName.SomeTest" );
 			expect( testCaseNode.getName() ).to.equal( "Test some() method" );
 			
 			expect( testCaseNode.getSetUp() ).to.not.equal( null );

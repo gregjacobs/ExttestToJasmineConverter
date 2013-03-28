@@ -10,14 +10,7 @@ var CodeNode = require( './Code' );
  */
 var TearDownNode = CodeNode.extend( {
 	
-	/**
-	 * Accepts a Visitor.
-	 * 
-	 * @param {node.Visitor} visitor
-	 */
-	accept : function( visitor ) {
-		visitor.visitTearDown( this );
-	}
+	// No implementation - inherits superclass
 	
 } );
 

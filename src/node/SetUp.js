@@ -10,14 +10,7 @@ var CodeNode = require( './Code' );
  */
 var SetUpNode = CodeNode.extend( {
 	
-	/**
-	 * Accepts a Visitor.
-	 * 
-	 * @param {node.Visitor} visitor
-	 */
-	accept : function( visitor ) {
-		visitor.visitSetUp( this );
-	}
+	// No implementation - inherits superclass
 	
 } );
 

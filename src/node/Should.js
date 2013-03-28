@@ -43,16 +43,6 @@ var ShouldNode = Node.extend( {
 	 */
 	getErrorTests : function() {
 		return this.errorTests;
-	},
-	
-	
-	/**
-	 * Accepts a Visitor.
-	 * 
-	 * @param {node.Visitor} visitor
-	 */
-	accept : function( visitor ) {
-		visitor.visitShould( this );
 	}
 	
 } );

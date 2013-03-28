@@ -1,9 +1,11 @@
 /*global Class, ui, _, describe, beforeEach, afterEach, it, expect */
 /*jshint browser:true */
 describe( "unit.ui.formFields.AbstractField", function() {
-	var thisSuite = {};
+	var thisSuite;
 	
 	beforeEach( function() {
+		thisSuite = {};
+		
 		// An AbstractField with implemented setValue() and getValue() methods used for testing.
 		thisSuite.TestAbstractField = Class.extend( ui.formFields.AbstractField, {
 			setValue : function( val ) { thisSuite.value = val; },
