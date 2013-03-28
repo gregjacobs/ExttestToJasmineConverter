@@ -949,7 +949,7 @@ describe( "Parser", function() {
 		
 		
 		
-		it( "should parse a single TestCase that is the direct instantiation of an Ext.Test TestCase subclass", function() {
+		xit( "should parse a single TestCase that is the direct instantiation of an Ext.Test TestCase subclass", function() {
 			var input = [
 				'new packageName.SomeTest( {',
 				'    name : "Test some() method",',

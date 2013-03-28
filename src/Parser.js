@@ -615,7 +615,7 @@ var Parser = Class.extend( Object, {
 	parseTestCase : function() {
 		this.skipWhitespaceAndComments();
 		
-		var testCaseMatch = this.getMatch( this.testCaseRe ) || this.getMatch( this.testCaseInstantiationRe ),  // attempts to match either regex at the currentPos
+		var testCaseMatch = this.getMatch( this.testCaseRe ),// || this.getMatch( this.testCaseInstantiationRe ),  // attempts to match either regex at the currentPos
 		    testCaseNode = null;
 		
 		if( testCaseMatch !== null ) {  // if there's a TestCase match at the current position
