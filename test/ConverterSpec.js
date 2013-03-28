@@ -53,8 +53,8 @@ describe( "Converter", function() {
 	describe( "complete conversion tests", function() {
 	
 		it( "should convert a fairly simple Ext.Test file", function() {
-			var input = fs.readFileSync( __dirname + '/fixture/simple_input.js', 'utf8' ),
-			    expectedOutput = fs.readFileSync( __dirname + '/fixture/simple_expectedOutput.js', 'utf8' );
+			var input = fs.readFileSync( __dirname + '/sample/simple_input.js', 'utf8' ),
+			    expectedOutput = fs.readFileSync( __dirname + '/sample/simple_expectedOutput.js', 'utf8' );
 			
 			// Strip all carriage returns off of the input and expected output. They needlessly get in the way.
 			input = input.replace( /\r/g, '' );
@@ -66,8 +66,8 @@ describe( "Converter", function() {
 	
 		
 		it( "should convert JsMockito try/catch blocks in a file", function() {
-			var input = fs.readFileSync( __dirname + '/fixture/jsMockitoTests_input.js', 'utf8' ),
-			    expectedOutput = fs.readFileSync( __dirname + '/fixture/jsMockitoTests_expectedOutput.js', 'utf8' );
+			var input = fs.readFileSync( __dirname + '/sample/jsMockitoTests_input.js', 'utf8' ),
+			    expectedOutput = fs.readFileSync( __dirname + '/sample/jsMockitoTests_expectedOutput.js', 'utf8' );
 			
 			// Strip all carriage returns off of the input and expected output. They needlessly get in the way.
 			input = input.replace( /\r/g, '' );
@@ -79,8 +79,8 @@ describe( "Converter", function() {
 	
 		
 		it( "should convert setUp() and tearDown() methods in a file", function() {
-			var input = fs.readFileSync( __dirname + '/fixture/setUpAndTearDown_input.js', 'utf8' ),
-			    expectedOutput = fs.readFileSync( __dirname + '/fixture/setUpAndTearDown_expectedOutput.js', 'utf8' );
+			var input = fs.readFileSync( __dirname + '/sample/setUpAndTearDown_input.js', 'utf8' ),
+			    expectedOutput = fs.readFileSync( __dirname + '/sample/setUpAndTearDown_expectedOutput.js', 'utf8' );
 			
 			// Strip all carriage returns off of the input and expected output. They needlessly get in the way.
 			input = input.replace( /\r/g, '' );
@@ -92,12 +92,21 @@ describe( "Converter", function() {
 	
 		
 		it( "should convert a file with an outer TestCase (instead of an outer Suite)", function() {
-			var input = fs.readFileSync( __dirname + '/fixture/outerTestCase_input.js', 'utf8' ),
-			    expectedOutput = fs.readFileSync( __dirname + '/fixture/outerTestCase_expectedOutput.js', 'utf8' );
+			var input = fs.readFileSync( __dirname + '/sample/outerTestCase_input.js', 'utf8' ),
+			    expectedOutput = fs.readFileSync( __dirname + '/sample/outerTestCase_expectedOutput.js', 'utf8' );
 			
 			// Strip all carriage returns off of the input and expected output. They needlessly get in the way.
 			input = input.replace( /\r/g, '' );
 			expectedOutput = expectedOutput.replace( /\r/g, '' );
+			
+			var convertedInput = converter.convert( input );
+			expect( convertedInput ).to.equal( expectedOutput );
+		} );
+	
+		
+		it( "should convert a file with an indented outer TestCase", function() {
+			var input = fs.readFileSync( __dirname + '/sample/indentedOuterTestCase_input.js', 'utf8' ),
+			    expectedOutput = fs.readFileSync( __dirname + '/sample/indentedOuterTestCase_expectedOutput.js', 'utf8' );
 			
 			var convertedInput = converter.convert( input );
 			expect( convertedInput ).to.equal( expectedOutput );

@@ -34,6 +34,17 @@ var ParseResult = Class.extend( Object, {
 	 * The index in the {@link #input} where the outer Ext.Test Suite ended, and parsing was completed.
 	 */
 	
+	/**
+	 * @cfg {Number} indentLevel (required)
+	 * 
+	 * The number of indents that indented the outer Suite or TestCase. If indents were tabs, then each tab character was 
+	 * counted as one indent level. If indents were spaces, then every 4 spaces were counted as one indent level.
+	 * 
+	 * Ex: 2 tabs = indent level of 2
+	 *     8 spaces = indent level of 2
+	 *     
+	 * If the outer Suite or TestCase was not indented, this should be 0.
+	 */
 	
 	
 	/**
@@ -83,6 +94,16 @@ var ParseResult = Class.extend( Object, {
 	 */
 	getEndIdx : function() {
 		return this.endIdx;
+	},
+	
+	
+	/**
+	 * Retrieves the number of indents that indented the outer Suite or TestCase.
+	 * 
+	 * @return {Number}
+	 */
+	getIndentLevel : function() {
+		return this.indentLevel;
 	}
 	
 } );

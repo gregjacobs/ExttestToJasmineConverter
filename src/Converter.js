@@ -26,8 +26,11 @@ var Converter = Class.extend( Object, {
 		var transformVisitor = new JasmineTransformVisitor();
 		parseTree.accept( transformVisitor );
 		
-		var jasmineWriter = new JasmineWriter(),
-		    jasmineOutput = jasmineWriter.write( parseTree );
+		var jasmineWriter = new JasmineWriter( {
+			indentLevel: parseResult.getIndentLevel()  // start at the indent level that the outer Suite or TestCase was at
+		} );
+		
+		var jasmineOutput = jasmineWriter.write( parseTree );
 		
 		// Replace the section of code in the input that held the Ext.Test suite, with the Jasmine output
 		str = str.substring( 0, parseResult.getStartIdx() ) + jasmineOutput + str.substring( parseResult.getEndIdx() + 1 );

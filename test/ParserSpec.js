@@ -364,6 +364,7 @@ describe( "Parser", function() {
 			expect( parseResult.getParseTree() ).to.be.instanceOf( SuiteNode );
 			expect( parseResult.getStartIdx() ).to.equal( 0 );
 			expect( parseResult.getEndIdx() ).to.equal( input.length );
+			expect( parseResult.getIndentLevel() ).to.equal( 0 );
 			
 			var suite = parseResult.getParseTree();
 			expect( suite.getName() ).to.equal( "unit.thePackage.TheClass" );
@@ -431,6 +432,7 @@ describe( "Parser", function() {
 			expect( parseResult.getParseTree() ).to.be.instanceOf( TestCaseNode );
 			expect( parseResult.getStartIdx() ).to.equal( 0 );
 			expect( parseResult.getEndIdx() ).to.equal( input.length );
+			expect( parseResult.getIndentLevel() ).to.equal( 0 );
 			
 			
 			
@@ -468,6 +470,46 @@ describe( "Parser", function() {
 		} );
 		
 		
+		it( "should report the correct indent level of an outer Suite", function() {
+			var input = [
+				'\ttests.unit.thePackage.add( new Ext.test.TestSuite( {',
+				'\t\tname: "TheClass",',
+				'\t\titems : [',
+				'\t\t\t{',
+				'\t\t\t\tname : "method() test case",',
+				'\t\t\t\t"something should happen" : function() {',
+				'\t\t\t\t\tvar a = 1;',
+				'\t\t\t\t},',
+				'\t\t\t},',
+				'\t\t]',
+				'\t} ) );'
+			].join( "\n" );
+			
+			var parser = new Parser( input ),
+			    parseResult = parser.parse();
+			
+			expect( parseResult.getIndentLevel() ).to.equal( 1 );
+		} );
+		
+		
+		it( "should report the correct indent level of an outer TestCase", function() {
+			var input = [
+				'\ttests.unit.thePackage.add( new Ext.test.TestCase( {',
+				'\t\tname: "TheClass",',
+				'\t\t',
+				'\t\t"something should happen" : function() {',
+				'\t\t\tY.Assert.areSame( 1, 1 );',
+				'\t\t}',
+				'\t} ) );'
+			].join( "\n" );
+			
+			var parser = new Parser( input ),
+			    parseResult = parser.parse();
+			
+			expect( parseResult.getIndentLevel() ).to.equal( 1 );
+		} );
+		
+		
 		it( "should throw an error if the input does not have an outer Suite or TestCase", function() {
 			var input = [
 				'asdfasdfasfd',
@@ -490,6 +532,34 @@ describe( "Parser", function() {
 			expect( function() {
 				parser.parse();
 			} ).to.Throw( "No outer Ext.Test Suite or TestCase found" );
+		} );
+		
+	} );
+	
+	
+	describe( "determineIndentLevel()", function() {
+		
+		it( "should return 0 when given no whitespace", function() {
+			var parser = new Parser( "Testing 123" );  // argument ignored in this test
+			
+			expect( parser.determineIndentLevel( "" ) ).to.equal( 0 );
+		} );
+		
+		
+		it( "should return the number of tabs, when tabs are used for indenting", function() {
+			var parser = new Parser( "Testing 123" );  // argument ignored in this test
+			
+			expect( parser.determineIndentLevel( "\t" ) ).to.equal( 1 );
+			expect( parser.determineIndentLevel( "\t\t\t" ) ).to.equal( 3 );
+		} );
+		
+		
+		it( "should return the number of spaces / 4, when spaces are used for indenting", function() {
+			var parser = new Parser( "Testing 123" );  // argument ignored in this test
+			
+			expect( parser.determineIndentLevel( "    " ) ).to.equal( 1 );
+			expect( parser.determineIndentLevel( "        " ) ).to.equal( 2 );
+			expect( parser.determineIndentLevel( "            " ) ).to.equal( 3 );
 		} );
 		
 	} );

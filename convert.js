@@ -1,7 +1,7 @@
 /**
  * This file is to be run on node.js. Ex:
  * 
- * node convert.js input [output]
+ * $ node convert.js input [output]
  * 
  * If no output is given, prints to the console.
  */
@@ -13,7 +13,9 @@ var fs = require( 'fs' ),
 
 
 if( argv.length < 3 ) {
-	console.log( "Unexpected number of arguments. Expected:\nnode [thisfile] inputFile [outputFile]\n\nIf no outputFile, prints output to console." );
+	console.log( "Usage: node convert.js inputFile [outputFile]" );
+	console.log( "If no outputFile is specified, prints converted output to console." );
+	
 	process.exit( 1 );
 }
 

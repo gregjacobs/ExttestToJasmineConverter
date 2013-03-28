@@ -19,7 +19,6 @@ var Class = require( './Class' ),
  */
 var Parser = Class.extend( Object, {
 	
-	
 	/**
 	 * @protected
 	 * @property {Number} currentPos
@@ -81,7 +80,6 @@ var Parser = Class.extend( Object, {
 	 * 1. The TestCase name.
 	 */
 	testCaseRe : /\{\s*(?:\/\*[\s\S]*?\*\/)?\s*name\s*:\s*['"](.*?)['"],?(?!\s*?ttype)/g,
-	
 	
 	/**
 	 * @protected
@@ -401,19 +399,52 @@ var Parser = Class.extend( Object, {
 			throw new Error( "No outer Ext.Test Suite or TestCase found" );
 		}
 		
-		var startIdx = ( outerSuiteMatch ) ? outerSuiteMatch.index : outerTestCaseMatch.index;
-		this.currentPos = startIdx;  // advance current position to the start of the outer suite
+		var startIdx,
+		    outerIndentLevel;
 		
-		var outerNode = ( outerSuiteMatch ) ? this.parseOuterSuite() : this.parseOuterTestCase();
+		if( outerSuiteMatch ) {
+			startIdx = outerSuiteMatch.index;
+			outerIndentLevel = this.determineIndentLevel( outerSuiteMatch[ 1 ] );
+		} else {
+			startIdx = outerTestCaseMatch.index;
+			outerIndentLevel = this.determineIndentLevel( outerTestCaseMatch[ 1 ] );
+		}
+		
+		this.currentPos = startIdx;  // advance current position to the start of the outer Suite or TestCase
+		var outerNode = ( outerSuiteMatch ) ? this.parseOuterSuite() : this.parseOuterTestCase();  // parse the outer Suite or TestCase
 		
 		return new ParseResult( {
-			parseTree : outerNode,
-			input     : this.input,
-			startIdx  : startIdx,
-			endIdx    : this.currentPos   // the current position after parsing
+			parseTree   : outerNode,
+			input       : this.input,
+			startIdx    : startIdx,
+			endIdx      : this.currentPos,   // the current position after parsing
+			indentLevel : outerIndentLevel   // the indent level to the outer Suite or TestCase (1 tab == 1 indent, 4 spaces == 1 indent)
 		} );
 	},
 	
+	
+	/**
+	 * Determines the indent level, given a chunk of whitespace. If the indents are tabs, then each tab character is 
+	 * counted as one level of indent. If indents are spaces, then every 4 spaces are counted as one level of indent.
+	 * 
+	 * Ex: 2 tabs = indent level of 2
+	 *     8 spaces = indent level of 2
+	 *     
+	 * @param {String} whitespace The whitespace to determine the indent level for.
+	 * @return {Number} The number of indents.
+	 */
+	determineIndentLevel : function( whitespace ) {
+		if( !whitespace ) return 0;
+		
+		var firstChar = whitespace.charAt( 0 );
+		if( firstChar === '\t' ) {
+			return whitespace.length;
+		} else if( firstChar === ' ' ) {
+			return Math.round( whitespace.length / 4 );  // rounding just in case there are 3, or 5, or some odd numbe of spaces... Very easy to do when using spaces for indents...
+		} else {
+			throw new Error( "Could not determine indent level. The first char of the `whitespace` was not a tab or space." );
+		}
+	},
 	
 	
 	/**
