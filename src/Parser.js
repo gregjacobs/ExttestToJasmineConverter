@@ -487,10 +487,11 @@ var Parser = Class.extend( Object, {
 			
 			var suiteName = outerSuiteMatch[ 2 ] + '.' + outerSuiteMatch[ 3 ],  // package name + class name
 			    children = this.parseSuiteItems() || [];
+			this.skipWhitespaceAndComments();
 			
 			var endOuterSuiteSeqMatch = this.getMatch( /\}\s*\)\s*\);/g );
 			if( !endOuterSuiteSeqMatch ) {
-				throw new Error( "Expected closing sequnce '} ) );' for the end of the outer Suite, but found " + this.input.substr( this.currentPos, 10 ) + " instead." );
+				this.throwParseError( "Expected closing sequnce '} ) );' for the end of the outer Suite." );
 			}
 			this.currentPos += endOuterSuiteSeqMatch[ 0 ].length;  // advanced past the closing sequence
 			
@@ -516,10 +517,11 @@ var Parser = Class.extend( Object, {
 			
 			var testCaseItems = this.parseTestCaseItems(),
 			    testCaseName = outerTestCaseMatch[ 2 ] + '.' + outerTestCaseMatch[ 3 ];  // package name + class name
+			this.skipWhitespaceAndComments();
 			
 			var endOuterTestCaseSeqMatch = this.getMatch( /\}\s*\)\s*\);/g );
 			if( !endOuterTestCaseSeqMatch ) {
-				throw new Error( "Expected closing sequnce '} ) );' for the end of the outer TestCase, but found " + this.input.substr( this.currentPos, 10 ) + " instead." );
+				this.throwParseError( "Expected closing sequnce '} ) );' for the end of the outer TestCase." );
 			}
 			this.currentPos += endOuterTestCaseSeqMatch[ 0 ].length;  // advanced past the closing sequence
 			
@@ -553,7 +555,7 @@ var Parser = Class.extend( Object, {
 			    children = this.parseSuiteItems() || [];  // default to an empty array
 			
 			if( this.peekChar() !== '}' ) {
-				throw new Error( "Expected closing brace '}' for the end of a Suite, but found " + this.peekChar() + " instead." );
+				this.throwParseError( "Expected closing brace '}' for the end of a Suite." );
 			}
 			this.currentPos++;  // advanced past the closing brace '}'
 			
