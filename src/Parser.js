@@ -563,7 +563,11 @@ var Parser = Class.extend( Object, {
 			
 			var items = [];
 			while( this.peekChar() !== ']' ) {
-				items.push( this.parseSuite() || this.parseTestCase() );
+				var item = this.parseSuite() || this.parseTestCase();
+				if( !item ) {
+					throw new Error( "Expected a Suite or TestCase while parsing the items of a Suite. Was looking at text: `" + this.input.substr( this.currentPos, 50 ) + "`  Starting at character " + this.currentPos );
+				}
+				items.push( item );
 				
 				this.skipWhitespaceAndComments();
 				if( this.peekChar() === ',' ) {
@@ -634,6 +638,8 @@ var Parser = Class.extend( Object, {
 				shouldNode = obj;
 			} else if( obj = this.parseTest() ) {
 				tests.push( obj );
+			} else {
+				throw new Error( "Expected a setUp(), tearDown(), _should block, or a Test while parsing the items of a TestCase. Was looking at text: `" + this.input.substr( this.currentPos, 50 ) + "`  Starting at character " + this.currentPos );
 			}
 			
 			if( this.peekChar() === ',' )
