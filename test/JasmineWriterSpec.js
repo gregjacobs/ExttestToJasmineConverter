@@ -652,13 +652,17 @@ describe( 'node.JasmineWriter', function() {
 			
 			var input = [
 				'this.a.destroy();',
-				'this.b.destroy();'
+				'this.b.destroy();',
+				'this.$myEl.doSomething();',
+				'this._someVar;'
 			].join( "\n" );
 			
 			var output = jasmineWriter.transformThisReferences( input );
 			expect( output ).to.equal( [
 				'thisSuite.a.destroy();',
-				'thisSuite.b.destroy();'
+				'thisSuite.b.destroy();',
+				'thisSuite.$myEl.doSomething();',
+				'thisSuite._someVar;'
 			].join( "\n" ) );
 		} );
 		

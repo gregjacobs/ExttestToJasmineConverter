@@ -348,7 +348,7 @@ var JasmineWriter = Class.extend( Object, {
 	 * @return {String} The input, with `this` references converted to `thisSuite`.
 	 */
 	transformThisReferences : function( input ) {
-		return input.replace( /\bthis\.\b/g, 'thisSuite.' );
+		return input.replace( /\bthis\.(?=[A-Za-z_\$])/g, 'thisSuite.' );
 	},
 	
 	
