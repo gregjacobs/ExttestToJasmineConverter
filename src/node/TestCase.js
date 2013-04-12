@@ -1,5 +1,7 @@
 /*global require, module */
-var Node = require( './Node' );
+var AbstractNode     = require( './Node' ),
+    TestNode         = require( './Test' ),
+    HelperMethodNode = require( './HelperMethod' );
 
 
 /**
@@ -11,7 +13,7 @@ var Node = require( './Node' );
  * block (which has information about ignored tests and tests that should error), and
  * one or more {@link node.Test Test} nodes. 
  */
-var TestCaseNode = Node.extend( {
+var TestCaseNode = AbstractNode.extend( {
 	
 	/**
 	 * @constructor
@@ -20,13 +22,30 @@ var TestCaseNode = Node.extend( {
 	 * @param {node.SetUp} setUp The SetUp node, if any. `null` for none.
 	 * @param {node.TearDown} tearDown The TearDown node, if any. `null` for none.
 	 * @param {node.Test[]} tests The child tests.
+	 * @param {node.HelperMethod[]} helperMethods Any helper methods that exist in the TestCase.
 	 */
-	constructor : function( name, should, setUp, tearDown, tests ) {
+	constructor : function( name, should, setUp, tearDown, tests, helperMethods ) {
+		tests = tests || [];
+		helperMethods = helperMethods || [];
+		
+		// Do some checking that tests are node.Test instances, and helperMethods are node.HelperMethod instances,
+		// just to make sure, and to assist in debugging
+		var i, len;
+		for( i = 0, len = tests.length; i < len; i++ ) {
+			if( !( tests[ i ] instanceof TestNode ) ) 
+				throw new Error( "An element provided to the tests array was not a node.Test instance" );
+		}
+		for( i = 0, len = helperMethods.length; i < len; i++ ) {
+			if( !( helperMethods[ i ] instanceof HelperMethodNode ) ) 
+				throw new Error( "An element provided to the helperMethods array was not a node.HelperMethod instance" );
+		}
+		
 		this.name = name;
 		this.should = should;
 		this.setUp = setUp;
 		this.tearDown = tearDown;
 		this.tests = tests;
+		this.helperMethods = helperMethods;
 	},
 	
 	
@@ -87,6 +106,16 @@ var TestCaseNode = Node.extend( {
 	 */
 	getTests : function() {
 		return this.tests || [];
+	},
+	
+	
+	/**
+	 * Retrieves the HelperMethod nodes.
+	 * 
+	 * @return {node.HelperMethod[]} The array of HelperMethod nodes.
+	 */
+	getHelperMethods : function() {
+		return this.helperMethods || [];
 	}
 	
 } );

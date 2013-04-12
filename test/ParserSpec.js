@@ -1,16 +1,17 @@
 /*global require, __dirname, describe, xdescribe, beforeEach, afterEach, it, xit */
 /*jshint sub:true */
-var expect         = require( 'chai' ).expect,
-    fs             = require( 'fs' ),
-    Parser         = require( '../src/Parser' ),
-    ParseResult    = require( '../src/ParseResult' ),
-    SuiteNode      = require( '../src/node/Suite' ),
-    TestCaseNode   = require( '../src/node/TestCase' ),
-    DiTestCaseNode = require( '../src/node/DiTestCase' ),
-    ShouldNode     = require( '../src/node/Should' ),
-    SetUpNode      = require( '../src/node/SetUp' ),
-    TearDownNode   = require( '../src/node/TearDown' ),
-    TestNode       = require( '../src/node/Test' );
+var expect           = require( 'chai' ).expect,
+    fs               = require( 'fs' ),
+    Parser           = require( '../src/Parser' ),
+    ParseResult      = require( '../src/ParseResult' ),
+    SuiteNode        = require( '../src/node/Suite' ),
+    TestCaseNode     = require( '../src/node/TestCase' ),
+    DiTestCaseNode   = require( '../src/node/DiTestCase' ),
+    ShouldNode       = require( '../src/node/Should' ),
+    SetUpNode        = require( '../src/node/SetUp' ),
+    TearDownNode     = require( '../src/node/TearDown' ),
+    TestNode         = require( '../src/node/Test' ),
+    HelperMethodNode = require( '../src/node/HelperMethod' );
 
 
 describe( "Parser", function() {
@@ -672,6 +673,15 @@ describe( "Parser", function() {
 				'    /* blah blah',        // another comment
 				'       blah blah */',     // that should be ignored
 				'    ',
+				'    ',
+				'    someHelper : function() {',
+				'        return "helper method";',
+				'    },',
+				'    ',
+				'    someOtherHelper : function() {',
+				'        return "helper method 2";',
+				'    },',
+				'    ',
 				'    "something should happen" : function() {',
 				'        Y.Assert.areSame( 1, 1 );',
 				'    },',
@@ -707,7 +717,7 @@ describe( "Parser", function() {
 			expect( testCaseNode.getTearDown().getBody() ).to.match( /this\.a\.destroy\(\);/ );
 			expect( testCaseNode.getTearDown().getBody() ).to.match( /this\.b\.destroy\(\);/ );
 			
-			// "Should" rules assertions
+			// "Should" rules
 			var should = testCaseNode.getShould();
 			expect( should ).to.not.equal( null );
 			expect( should.getIgnoredTests() ).to.not.equal( null );
@@ -716,7 +726,7 @@ describe( "Parser", function() {
 			expect( should.getErrorTests()[ 'test_somethingElse' ] ).to.equal( "some error" );
 			expect( should.getErrorTests()[ 'something else should happen' ] ).to.equal( "some super-long error message" );
 			
-			// Tests Assertions
+			// Tests
 			var tests = testCaseNode.getTests();
 			expect( tests.length ).to.equal( 5 );
 			expect( tests[ 0 ].getName() ).to.equal( "something should happen" );
@@ -724,6 +734,12 @@ describe( "Parser", function() {
 			expect( tests[ 2 ].getName() ).to.equal( "something" );
 			expect( tests[ 3 ].getName() ).to.equal( "somethingElse" );
 			expect( tests[ 4 ].getName() ).to.equal( "something worthy of mordor should happen" );
+			
+			// Helper methods
+			var helperMethods = testCaseNode.getHelperMethods();
+			expect( helperMethods.length ).to.equal( 2 );
+			expect( helperMethods[ 0 ].getName() ).to.equal( "someHelper" );
+			expect( helperMethods[ 1 ].getName() ).to.equal( "someOtherHelper" );
 			
 			expect( parser.currentPos ).to.equal( input.length );  // currentPos should have been advanced to past the TestCase
 		} );
@@ -878,12 +894,24 @@ describe( "Parser", function() {
 				'    },',
 				'    ',
 				'    ',
+				'    someHelperMethod : function() {',
+				'        return "iHelp";',
+				'    },',
+				'    ',
 				'    "something should happen" : function() {',
 				'        Y.Assert.areSame( 1, 1 );',
 				'    },',
 				'    ',
 				'    "something else should happen" : function() {',
 				'        Y.Assert.areSame( 1, 2 );',
+				'    },',
+				'    ',
+				'    someOtherHelperMethod : function() {',
+				'        return "iAlsoHelp";',
+				'    },',
+				'    ',
+				'    "" : function() {',
+				'        return "an empty placeholder method. sometimes they exist, and should be ignored";',
 				'    },',
 				'    ',
 				'    test_something : function() {',
@@ -914,7 +942,7 @@ describe( "Parser", function() {
 			expect( testCaseNode.getTearDown().getBody() ).to.match( /this\.a\.destroy\(\);/ );
 			expect( testCaseNode.getTearDown().getBody() ).to.match( /this\.b\.destroy\(\);/ );
 			
-			// "Should" rules assertions
+			// "Should" rules
 			var should = testCaseNode.getShould();
 			expect( should ).to.not.equal( null );
 			expect( should.getIgnoredTests() ).to.not.equal( null );
@@ -923,7 +951,7 @@ describe( "Parser", function() {
 			expect( should.getErrorTests()[ 'test_somethingElse' ] ).to.equal( "some error" );
 			expect( should.getErrorTests()[ 'something else should happen' ] ).to.equal( "some super-long error message" );
 			
-			// Tests Assertions
+			// Tests
 			var tests = testCaseNode.getTests();
 			expect( tests.length ).to.equal( 5 );
 			expect( tests[ 0 ].getName() ).to.equal( "something should happen" );
@@ -931,6 +959,12 @@ describe( "Parser", function() {
 			expect( tests[ 2 ].getName() ).to.equal( "something" );
 			expect( tests[ 3 ].getName() ).to.equal( "somethingElse" );
 			expect( tests[ 4 ].getName() ).to.equal( "something worthy of mordor should happen" );
+			
+			// Helper Methods
+			var helperMethods = testCaseNode.getHelperMethods();
+			expect( helperMethods.length ).to.equal( 2 );
+			expect( helperMethods[ 0 ].getName() ).to.equal( "someHelperMethod" );
+			expect( helperMethods[ 1 ].getName() ).to.equal( "someOtherHelperMethod" );
 			
 			expect( parser.currentPos ).to.equal( input.length );  // currentPos should have been advanced to past the TestCase
 		} );
@@ -991,6 +1025,14 @@ describe( "Parser", function() {
 				'    },',
 				'    ',
 				'    ',
+				'    someHelper : function() {',
+				'        return "helper method";',
+				'    },',
+				'    ',
+				'    someOtherHelper : function() {',
+				'        return "helper method 2";',
+				'    },',
+				'    ',
 				'    "something should happen" : function() {',
 				'        Y.Assert.areSame( 1, 1 );',
 				'    },',
@@ -1028,7 +1070,7 @@ describe( "Parser", function() {
 			expect( testCaseNode.getTearDown().getBody() ).to.match( /this\.a\.destroy\(\);/ );
 			expect( testCaseNode.getTearDown().getBody() ).to.match( /this\.b\.destroy\(\);/ );
 			
-			// "Should" rules assertions
+			// "Should" rules
 			var should = testCaseNode.getShould();
 			expect( should ).to.not.equal( null );
 			expect( should.getIgnoredTests() ).to.not.equal( null );
@@ -1037,7 +1079,7 @@ describe( "Parser", function() {
 			expect( should.getErrorTests()[ 'test_somethingElse' ] ).to.equal( "some error" );
 			expect( should.getErrorTests()[ 'something else should happen' ] ).to.equal( "some super-long error message" );
 			
-			// Tests Assertions
+			// Tests
 			var tests = testCaseNode.getTests();
 			expect( tests.length ).to.equal( 5 );
 			expect( tests[ 0 ].getName() ).to.equal( "something should happen" );
@@ -1045,6 +1087,12 @@ describe( "Parser", function() {
 			expect( tests[ 2 ].getName() ).to.equal( "something" );
 			expect( tests[ 3 ].getName() ).to.equal( "somethingElse" );
 			expect( tests[ 4 ].getName() ).to.equal( "something worthy of mordor should happen" );
+			
+			// Helper methods
+			var helperMethods = testCaseNode.getHelperMethods();
+			expect( helperMethods.length ).to.equal( 2 );
+			expect( helperMethods[ 0 ].getName() ).to.equal( "someHelper" );
+			expect( helperMethods[ 1 ].getName() ).to.equal( "someOtherHelper" );
 			
 			expect( parser.currentPos ).to.equal( input.length );  // currentPos should have been advanced to past the TestCase
 		} );
@@ -1282,6 +1330,108 @@ describe( "Parser", function() {
 			var testNode = parser.parseTest();  // should return null - there's a "_should" block at the starting position
 			
 			expect( testNode ).to.equal( null );
+		} );
+		
+	} );
+	
+	
+	
+	describe( "parseHelperMethod()", function() {
+		
+		it( "should parse a helper method when one exists at the current position", function() {
+			var input = [
+				'myHelper : function( arg1, arg2, arg3 ) {',
+				'    return "iHelp";',
+				'}'
+			].join( "\n" );
+			
+			var parser = new Parser( input ),
+			    helperMethodNode = parser.parseHelperMethod();
+			
+			expect( helperMethodNode ).to.be.instanceOf( HelperMethodNode );
+			expect( helperMethodNode.getName() ).to.equal( "myHelper" );
+			expect( helperMethodNode.getArgsList() ).to.equal( " arg1, arg2, arg3 " );
+			expect( helperMethodNode.getBody() ).to.match( /return "iHelp";/ );
+			
+			expect( parser.currentPos ).to.equal( input.length );  // currentPos should have been advanced to past the helper method
+		} );
+		
+		
+		it( "should return `null` if an 'empty string method' (which acted as a placeholder) exists at the current position", function() {
+			var input = [
+				'"" : function() {',
+				'\t',
+				'},'
+			].join( "\n" );
+			
+			var parser = new Parser( input ),
+			    helperMethodNode = parser.parseHelperMethod();  // should return null - there's a "_should" block at the starting position
+			
+			expect( helperMethodNode ).to.equal( null );
+			
+			expect( parser.currentPos ).to.equal( 0 );  // currentPos shouldn't have been moved
+		} );
+		
+		
+		it( "should return `null` when a helper method does *not* exist at the current position", function() {
+			var input = [
+				'_should : {',
+				'    error : {',
+				'        "myTest" : "someError",',
+				'        "myOtherTest" : ',
+				'            "some super-long error message"',
+				'    },',
+				'    ignore : {',
+				'        "myIgnoredTest" : true,',
+				'        "myOtherIgnoredTest" : true',
+				'    }',
+				'},',
+				'',
+				'test_something : function() {',
+				'    Y.Assert.areSame( 1, 1 );',
+				'},'
+			].join( "\n" );
+			
+			var parser = new Parser( input ),
+			    helperMethodNode = parser.parseHelperMethod();  // should return null - there's a "_should" block at the starting position
+			
+			expect( helperMethodNode ).to.equal( null );
+			
+			expect( parser.currentPos ).to.equal( 0 );  // currentPos shouldn't have been moved
+		} );
+		
+	} );
+	
+	
+	
+	describe( "parseEmptyStringPlaceholderMethod()", function() {
+		
+		it( "should parse an 'empty string placeholder' method when one exists at the current position", function() {
+			var input = [
+				'"" : function() {',
+				'    ',
+				'}'
+			].join( "\n" );
+			
+			var parser = new Parser( input ),
+			    result = parser.parseEmptyStringPlaceholderMethod();
+			
+			expect( result ).to.deep.equal( {} );
+			expect( parser.currentPos ).to.equal( input.length );  // currentPos should have been advanced to past the empty method
+		} );
+		
+		it( "should not advance the currentPos when something else is found at the current position", function() {
+			var input = [
+				'realHelperMethod : function() {',
+				'    ',
+				'}'
+			].join( "\n" );
+			
+			var parser = new Parser( input ),
+			    result = parser.parseEmptyStringPlaceholderMethod();
+			
+			expect( result ).to.equal( null );
+			expect( parser.currentPos ).to.equal( 0 );  // currentPos should not have been advanced
 		} );
 		
 	} );

@@ -138,6 +138,19 @@ describe( "Converter", function() {
 			expect( convertedInput ).to.equal( expectedOutput );
 		} );
 	
+		
+		it( "should convert a file with helper methods", function() {
+			var input = fs.readFileSync( __dirname + '/sample/helperMethods_input.js', 'utf8' ),
+			    expectedOutput = fs.readFileSync( __dirname + '/sample/helperMethods_expectedOutput.js', 'utf8' );
+			
+			// Strip all carriage returns off of the input and expected output. They needlessly get in the way.
+			input = input.replace( /\r/g, '' );
+			expectedOutput = expectedOutput.replace( /\r/g, '' );
+			
+			var convertedInput = converter.convert( input );
+			expect( convertedInput ).to.equal( expectedOutput );
+		} );
+	
 	} );
 	
 } );

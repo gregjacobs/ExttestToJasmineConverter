@@ -1,13 +1,14 @@
 /*global require, describe, beforeEach, afterEach, it */
 var expect = require( 'chai' ).expect,
-    JasmineWriter   = require( '../src/JasmineWriter' ),
-    SuiteNode       = require( '../src/node/Suite' ),
-    TestCaseNode    = require( '../src/node/TestCase' ),
-    DiTestCaseNode  = require( '../src/node/DiTestCase' ),
-    ShouldNode      = require( '../src/node/Should' ),
-    SetUpNode       = require( '../src/node/SetUp' ),
-    TearDownNode    = require( '../src/node/TearDown' ),
-    TestNode        = require( '../src/node/Test' );
+    JasmineWriter    = require( '../src/JasmineWriter' ),
+    SuiteNode        = require( '../src/node/Suite' ),
+    TestCaseNode     = require( '../src/node/TestCase' ),
+    DiTestCaseNode   = require( '../src/node/DiTestCase' ),
+    ShouldNode       = require( '../src/node/Should' ),
+    SetUpNode        = require( '../src/node/SetUp' ),
+    TearDownNode     = require( '../src/node/TearDown' ),
+    TestNode         = require( '../src/node/Test' ),
+    HelperMethodNode = require( '../src/node/HelperMethod' );
 
 describe( 'node.JasmineWriter', function() {
 	
@@ -34,7 +35,8 @@ describe( 'node.JasmineWriter', function() {
 				null,  // should
 				null,  // setUp
 				null,  // tearDown
-				[]     // tests
+				[],    // tests
+				[]     // helper methods
 			);
 			var output = jasmineWriter.write( testCaseNode );
 			
@@ -125,7 +127,8 @@ describe( 'node.JasmineWriter', function() {
 				null,  // should
 				null,  // setUp
 				null,  // tearDown
-				[]     // tests
+				[],    // tests
+				[]     // helper methods
 			);
 			
 			var nestedSuiteNode = new SuiteNode( "My Nested Suite", [] );
@@ -163,7 +166,8 @@ describe( 'node.JasmineWriter', function() {
 				null,  // should
 				null,  // setUp
 				null,  // tearDown
-				[]     // tests
+				[],    // tests
+				[]     // helper methods
 			);
 			jasmineWriter.appendTestCase( testCaseNode, buffer );
 			
@@ -217,13 +221,22 @@ describe( 'node.JasmineWriter', function() {
 				'}'
 			].join( "\n" ) );
 			
+			var helperMethodNode1 = new HelperMethodNode( "someHelper", " arg1, arg2 ", [
+				'return arg1;'
+			].join( "\n" ) );
+			
+			var helperMethodNode2 = new HelperMethodNode( "someHelper2", " arg1, arg2 ", [
+				'return arg2;'
+			].join( "\n" ) );
+			
 			
 			var testCaseNode = new TestCaseNode(
 				"My Test Case",
 				shouldNode,
 				setUpNode,
 				tearDownNode,
-				[ testNode1, testNode2, testNode3 ]
+				[ testNode1, testNode2, testNode3 ],
+				[ helperMethodNode1, helperMethodNode2 ]
 			);
 			jasmineWriter.appendTestCase( testCaseNode, buffer );
 			
@@ -242,6 +255,16 @@ describe( 'node.JasmineWriter', function() {
 				'\t\tthisSuite.a.destroy();',
 				'\t\tthisSuite.b.destroy();',
 				'\t} );',
+				'\t',
+				'\t',
+				'\tfunction someHelper( arg1, arg2 ) {',
+				'\t\treturn arg1;',
+				'\t}',
+				'\t',
+				'\t',
+				'\tfunction someHelper2( arg1, arg2 ) {',
+				'\t\treturn arg2;',
+				'\t}',
 				'\t',
 				'\t',
 				'\txit( "something should happen", function() {',
@@ -316,8 +339,6 @@ describe( 'node.JasmineWriter', function() {
 			].join( "\n" ) );
 			
 			jasmineWriter.appendSetUp( setUpNode, diTestCaseNode, buffer );
-			console.log( "" );
-			console.log( buffer.join( '\n' ) );
 			expect( buffer.join( '\n' ) ).to.equal( [
 				'var thisSuite;',
 				'',
@@ -438,9 +459,34 @@ describe( 'node.JasmineWriter', function() {
 	} );
 	
 	
+	describe( 'appendHelperMethod()', function() {
+		
+		it( "should create the code to transform a helper method", function() {
+			var jasmineWriter = new JasmineWriter( {
+				indentStr : '    '  // 4 spaces
+			} );
+			var buffer = [];
+			
+			var helperMethodNode = new HelperMethodNode( "someHelper", " arg1, arg2 ", [
+				'arg1 = arg1 + arg2 + this.something;',
+				'Y.Assert.areSame( arg1, arg2, "should be the same" );'
+			].join( "\n" ) );
+			
+			jasmineWriter.appendHelperMethod( helperMethodNode, buffer );
+			expect( buffer.join( '\n' ) ).to.equal( [
+				'function someHelper( arg1, arg2 ) {',
+				'    arg1 = arg1 + arg2 + thisSuite.something;',
+				'    expect( arg2 ).toBe( arg1 );  // orig YUI Test err msg: "should be the same"',
+				'}'
+			].join( "\n" ) );
+		} );
+		
+	} );
+	
+	
 	describe( 'appendTest()', function() {
 		
-		it( "should create the code to transform an Ext.Test tearDown() method, with no `should` instructions", function() {
+		it( "should create the code to transform an Ext.Test test method, with no `should` instructions", function() {
 			var jasmineWriter = new JasmineWriter( {
 				indentStr : '\t'
 			} );
@@ -453,7 +499,7 @@ describe( 'node.JasmineWriter', function() {
 				'}'
 			].join( "\n" ) );
 			
-			jasmineWriter.appendTest( testNode, null, buffer );
+			jasmineWriter.appendTest( testNode, null, [], buffer );
 			
 			expect( buffer.join( '\n' ) ).to.equal( [
 				'it( "something should happen", function() {',
@@ -466,7 +512,7 @@ describe( 'node.JasmineWriter', function() {
 		} );
 		
 		
-		it( "should create the code to transform an Ext.Test tearDown() method, with an ignore `should` instruction ('it' function should become 'xit')", function() {
+		it( "should create the code to transform an Ext.Test test method, with an ignore `should` instruction ('it' function should become 'xit')", function() {
 			var jasmineWriter = new JasmineWriter( {
 				indentStr : '\t'
 			} );
@@ -480,7 +526,7 @@ describe( 'node.JasmineWriter', function() {
 				'}'
 			].join( "\n" ) );
 			
-			jasmineWriter.appendTest( testNode, shouldNode, buffer );
+			jasmineWriter.appendTest( testNode, shouldNode, [], buffer );
 			
 			expect( buffer.join( '\n' ) ).to.equal( [
 				'xit( "something should happen", function() {',
@@ -493,7 +539,7 @@ describe( 'node.JasmineWriter', function() {
 		} );
 		
 		
-		it( "should create the code to transform an Ext.Test tearDown() method, with a 'should fail' `should` instruction (code body should be wrapped in an expectation to throw an error)", function() {
+		it( "should create the code to transform an Ext.Test test method, with a 'should fail' `should` instruction (code body should be wrapped in an expectation to throw an error)", function() {
 			var jasmineWriter = new JasmineWriter( {
 				indentStr : '\t'
 			} );
@@ -507,7 +553,7 @@ describe( 'node.JasmineWriter', function() {
 				'}'
 			].join( "\n" ) );
 			
-			jasmineWriter.appendTest( testNode, shouldNode, buffer );
+			jasmineWriter.appendTest( testNode, shouldNode, [], buffer );
 			
 			expect( buffer.join( '\n' ) ).to.equal( [
 				'it( "something should error", function() {',
@@ -522,7 +568,7 @@ describe( 'node.JasmineWriter', function() {
 		} );
 		
 		
-		it( "should create the code to transform an Ext.Test tearDown() method, with both 'ignore' and 'should fail' `should` instructions", function() {
+		it( "should create the code to transform an Ext.Test test method, with both 'ignore' and 'should fail' `should` instructions", function() {
 			var jasmineWriter = new JasmineWriter( {
 				indentStr : '\t'
 			} );
@@ -536,7 +582,7 @@ describe( 'node.JasmineWriter', function() {
 				'}'
 			].join( "\n" ) );
 			
-			jasmineWriter.appendTest( testNode, shouldNode, buffer );
+			jasmineWriter.appendTest( testNode, shouldNode, [], buffer );
 			
 			expect( buffer.join( '\n' ) ).to.equal( [
 				'xit( "something should error", function() {',
@@ -550,6 +596,32 @@ describe( 'node.JasmineWriter', function() {
 			].join( "\n" ) );
 		} );
 		
+		
+		it( "should create the code to transform an Ext.Test test method, transforming helper method calls", function() {
+			var jasmineWriter = new JasmineWriter( {
+				indentStr : '\t'
+			} );
+			var buffer = [];
+			
+			var testNode = new TestNode( "something should happen", [
+				'var a = 1;',
+				'if( b == 2 ) {',
+				'\ta = this.helperMethod();',
+				'}'
+			].join( "\n" ) );
+			
+			var helperMethod = new HelperMethodNode( "helperMethod", "", "" );  // no args list or code body
+			jasmineWriter.appendTest( testNode, null, [ helperMethod ], buffer );
+			
+			expect( buffer.join( '\n' ) ).to.equal( [
+				'it( "something should happen", function() {',
+				'\tvar a = 1;',
+				'\tif( b == 2 ) {',
+				'\t\ta = helperMethod();',
+				'\t}',
+				'} );'
+			].join( "\n" ) );
+		} );
 	} );
 	
 	
@@ -640,6 +712,45 @@ describe( 'node.JasmineWriter', function() {
 			].join( "\n" );
 			
 			expect( jasmineWriter.removeSuperclassCall( input ) ).to.equal( expected );
+		} );
+		
+	} );
+	
+	
+	describe( 'transformHelperMethodCalls()', function() {
+		
+		it( "should convert `this.methodName` to just `methodName` in the input", function() {
+			var jasmineWriter = new JasmineWriter();
+			
+			var input = [
+				'this.someHelper();',
+				'this.someOtherHelper();',
+				'this.somethingThatIsNotAHelperMethod();',
+				'',
+				'this.someHelper;',        // without function call operator
+				'this.someOtherHelper;',   // without function call operator
+				'',
+				'this.someHelperWITHSUFFIX'   // this one shouldn't be converted
+			].join( "\n" );
+			
+			var expectedOutput = [
+				'someHelper();',
+				'someOtherHelper();',
+				'this.somethingThatIsNotAHelperMethod();',
+				'',
+				'someHelper;',        // without function call operator
+				'someOtherHelper;',   // without function call operator
+				'',
+				'this.someHelperWITHSUFFIX'   // this one shouldn't be converted
+			].join( "\n" );
+			
+			var helperMethods = [
+				new HelperMethodNode( "someHelper", "", "" ),      // no args list or body
+				new HelperMethodNode( "someOtherHelper", "", "" )  // no args list or body
+			];
+			
+			var result = jasmineWriter.transformHelperMethodCalls( input, helperMethods );
+			expect( result ).to.equal( expectedOutput );
 		} );
 		
 	} );

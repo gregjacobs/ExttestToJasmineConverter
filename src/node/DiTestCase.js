@@ -37,11 +37,12 @@ var DiTestCaseNode = TestCaseNode.extend( {
 	 * @param {node.SetUp} setUp The SetUp node, if any. `null` for none.
 	 * @param {node.TearDown} tearDown The TearDown node, if any. `null` for none.
 	 * @param {node.Test[]} tests The child tests.
+	 * @param {node.HelperMethod[]} helperMethods Any helper methods that exist in the TestCase.
 	 */
-	constructor : function( ctorFnName, name, should, setUp, tearDown, tests ) {
+	constructor : function( ctorFnName, name, should, setUp, tearDown, tests, helperMethods ) {
 		this.ctorFnName = ctorFnName;
 		
-		this._super( [ name, should, setUp, tearDown, tests ] );
+		this._super( [ name, should, setUp, tearDown, tests, helperMethods ] );
 	},
 	
 	

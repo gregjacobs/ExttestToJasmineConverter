@@ -1,14 +1,15 @@
 /*global require, module */
 /*jshint boss:true, evil:true */
 var Class = require( './Class' ),
-    ParseResult    = require( './ParseResult' ),
-    SuiteNode      = require( './node/Suite' ),
-    TestCaseNode   = require( './node/TestCase' ),
-    DiTestCaseNode = require( '../src/node/DiTestCase' ),
-    ShouldNode     = require( './node/Should' ),
-    SetUpNode      = require( './node/SetUp' ),
-    TearDownNode   = require( './node/TearDown' ),
-    TestNode       = require( './node/Test' );
+    ParseResult      = require( './ParseResult' ),
+    SuiteNode        = require( './node/Suite' ),
+    TestCaseNode     = require( './node/TestCase' ),
+    DiTestCaseNode   = require( '../src/node/DiTestCase' ),
+    ShouldNode       = require( './node/Should' ),
+    SetUpNode        = require( './node/SetUp' ),
+    TearDownNode     = require( './node/TearDown' ),
+    TestNode         = require( './node/Test' ),
+    HelperMethodNode = require( './node/HelperMethod' );
 
 
 /**
@@ -117,24 +118,6 @@ var Parser = Class.extend( Object, {
 	
 	/**
 	 * @protected
-	 * @property {RegExp} shouldErrorRe
-	 * 
-	 * The regular expression used to match an "error" block inside a "should" block, which holds instructions for tests
-	 * which should throw errors.
-	 */
-	shouldErrorRe : /error\s*:\s*\{/g,
-	
-	/**
-	 * @protected
-	 * @property {RegExp} shouldIgnoreRe
-	 * 
-	 * The regular expression used to match an "ignore" block inside a "should" block, which holds instructions for tests
-	 * which should be ignored.
-	 */
-	shouldIgnoreRe : /ignore\s*:\s*\{/g,
-	
-	/**
-	 * @protected
 	 * @property {RegExp} setUpRe
 	 * 
 	 * The regular expression used to match a setUp() method.
@@ -162,6 +145,19 @@ var Parser = Class.extend( Object, {
 	 * 1. The Test name if the method name has the word 'should' in it.
 	 */
 	testRe : /(?:test_?([A-Za-z_\$]*?)|['"](.*? should .*?)['"])\s*:\s*function\(\)\s*\{/g,
+	
+	/**
+	 * @protected
+	 * @property {RegExp} helperMethodRe
+	 * 
+	 * The regular expression used to match a helper method within a test case (i.e. a non-test method). 
+	 * 
+	 * Capturing groups:
+	 * 
+	 * 1. The method name
+	 * 2. The arguments list (simply the text in the parenthesis of the function)
+	 */
+	helperMethodRe : /([A-Za-z_\$][A-Za-z_\$0-9]*)\s*:\s*function\((.*?)\)\s*\{/g,
 	
 	/**
 	 * @protected
@@ -527,7 +523,14 @@ var Parser = Class.extend( Object, {
 			}
 			this.currentPos += endOuterTestCaseSeqMatch[ 0 ].length;  // advanced past the closing sequence
 			
-			return new TestCaseNode( testCaseName, testCaseItems.should, testCaseItems.setUp, testCaseItems.tearDown, testCaseItems.tests );
+			return new TestCaseNode( 
+				testCaseName, 
+				testCaseItems.should, 
+				testCaseItems.setUp, 
+				testCaseItems.tearDown, 
+				testCaseItems.tests, 
+				testCaseItems.helperMethods 
+			);
 		}
 	},
 	
@@ -662,7 +665,14 @@ var Parser = Class.extend( Object, {
 			}
 			this.currentPos++;  // advance past the closing brace '}'
 			
-			return new TestCaseNode( testCaseName, testCaseItems.should, testCaseItems.setUp, testCaseItems.tearDown, testCaseItems.tests );
+			return new TestCaseNode( 
+				testCaseName, 
+				testCaseItems.should, 
+				testCaseItems.setUp, 
+				testCaseItems.tearDown, 
+				testCaseItems.tests,
+				testCaseItems.helperMethods
+			);
 		}
 	},
 	
@@ -716,7 +726,15 @@ var Parser = Class.extend( Object, {
 			}
 			this.currentPos += endTestCaseMatch[ 0 ].length;  // advanced past the closing brace '}'
 			
-			return new DiTestCaseNode( ctorFnName, testCaseName, testCaseItems.should, testCaseItems.setUp, testCaseItems.tearDown, testCaseItems.tests );
+			return new DiTestCaseNode( 
+				ctorFnName, 
+				testCaseName, 
+				testCaseItems.should, 
+				testCaseItems.setUp, 
+				testCaseItems.tearDown, 
+				testCaseItems.tests,
+				testCaseItems.helperMethods 
+			);
 		}
 	},
 	
@@ -737,7 +755,8 @@ var Parser = Class.extend( Object, {
 			should   : null,
 			setUp    : null,
 			tearDown : null,
-			tests    : []
+			tests    : [],
+			helperMethods : []
 		};
 		
 		while( this.peekChar() !== '}' ) {
@@ -750,8 +769,13 @@ var Parser = Class.extend( Object, {
 				testCaseItems.tearDown = obj;
 			} else if( obj = this.parseTest() ) {
 				testCaseItems.tests.push( obj );
+			} else if( obj = this.parseHelperMethod() ) {
+				testCaseItems.helperMethods.push( obj );
+			} else if( obj = this.parseEmptyStringPlaceholderMethod() ) {
+				// We just ignore this one
+				obj = obj;  // just to get JSHint to stop complaining about an empty block
 			} else {
-				this.throwParseError( "Expected a setUp(), tearDown(), _should block, or a Test while parsing the items of a TestCase." );
+				this.throwParseError( "Expected a setUp(), tearDown(), _should block, test method, or helper method, while parsing the items of a TestCase." );
 			}
 			
 			if( this.peekChar() === ',' )
@@ -871,10 +895,82 @@ var Parser = Class.extend( Object, {
 			    testBody = this.input.substring( openBraceIdx + 1, closeBraceIdx );
 			testNode = new TestNode( name, testBody );
 			
-			// advance the current position to one char past the end of the _should block
+			// advance the current position to one char past the end of the test method
 			this.currentPos = closeBraceIdx + 1;
 		}
 		return testNode;
+	},
+	
+	
+	/**
+	 * Parses a helper method method at the {@link #currentPos}. This is a method of a {@link node.TestCase TestCase}
+	 * which is not a "test" method, but used as a helper instead.
+	 * 
+	 * @return {node.HelperMethod} The HelperMethod node, or `null` if a helper method was not found at the 
+	 *   {@link #currentPos}.
+	 */
+	parseHelperMethod : function() {
+		this.skipWhitespaceAndComments();
+		
+		var match = this.getMatch( this.helperMethodRe );  // attempts to match the regex at the currentPos
+		
+		if( match === null ) {
+			return null;
+		} else {
+			// there's a helper method match at the current position
+			var openBraceIdx = match.index + match[ 0 ].length - 1;
+			if( this.input.charAt( openBraceIdx ) !== '{' ) {  // just make sure we have the brace
+				throw new Error( "Should have found an open brace for the helper method. Found '" + this.input.charAt( openBraceIdx ) + "' instead." );
+			}
+			
+			var closeBraceIdx = Parser.findMatchingClosingBrace( this.input, openBraceIdx );
+			
+			var name = match[ 1 ],
+			    argsList = match[ 2 ],
+			    testBody = this.input.substring( openBraceIdx + 1, closeBraceIdx ),
+			    helperMethodNode = new HelperMethodNode( name, argsList, testBody );
+			
+			// advance the current position to one char past the end of the helper method
+			this.currentPos = closeBraceIdx + 1;
+			
+			return helperMethodNode;
+		}
+	},
+	
+	
+	/**
+	 * Parses an "empty string placeholder" method. This was basically when creating a test case but didn't
+	 * fill it with anything. Example:
+	 * 
+	 *     "" : function() {
+	 *         
+	 *     }
+	 * 
+	 * This method returns null, but advances the {@link #currentPos} past the empty method.
+	 * 
+	 * @return {Object} An empty plain JavaScript object if it matched, or null if not.
+	 */
+	parseEmptyStringPlaceholderMethod : function() {
+		this.skipWhitespaceAndComments();
+		
+		var match = this.getMatch( /['"]['"]\s*:\s*function\(\)\s*\{/g );  // attempts to match the regex at the currentPos
+		
+		if( match === null ) {
+			return null;
+		} else {
+			// there's an 'empty string placeholder' method match at the current position
+			var openBraceIdx = match.index + match[ 0 ].length - 1;
+			if( this.input.charAt( openBraceIdx ) !== '{' ) {  // just make sure we have the brace
+				throw new Error( "Should have found an open brace for the helper method. Found '" + this.input.charAt( openBraceIdx ) + "' instead." );
+			}
+			
+			var closeBraceIdx = Parser.findMatchingClosingBrace( this.input, openBraceIdx );
+			
+			// advance the current position to one char past the end of the 'empty string placeholder' method
+			this.currentPos = closeBraceIdx + 1;
+			
+			return {};  // just an empty JavaScript object. We'll actually ignore the result of this parse method. It's really just to advance the currentPos
+		}
 	},
 	
 	

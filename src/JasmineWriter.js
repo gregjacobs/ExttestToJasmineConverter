@@ -148,7 +148,8 @@ var JasmineWriter = Class.extend( Object, {
 		    should = testCaseNode.getShould(),
 		    setUp = testCaseNode.getSetUp(),
 		    tearDown = testCaseNode.getTearDown(),
-		    tests = testCaseNode.getTests();
+		    tests = testCaseNode.getTests(),
+		    helperMethods = testCaseNode.getHelperMethods();
 		
 		if( isDiTestCase ) {
 			// For "direct instantiation" test cases, we always need to append a beforeEach() and afterEach()
@@ -170,9 +171,17 @@ var JasmineWriter = Class.extend( Object, {
 			}
 		}
 		
+		// Append Helper Methods
+		helperMethods.forEach( function( helperMethod ) {
+			this.appendOutput( '', buffer );  // will result in appending a line break
+			this.appendHelperMethod( helperMethod, buffer );
+			this.appendOutput( '', buffer );  // will result in appending a line break
+		}, this );
+		
+		// Append Tests
 		tests.forEach( function( test ) {
 			this.appendOutput( '', buffer );  // will result in appending a line break
-			this.appendTest( test, should, buffer );
+			this.appendTest( test, should, helperMethods, buffer );
 			this.appendOutput( '', buffer );  // will result in appending a line break
 		}, this );
 		
@@ -264,19 +273,51 @@ var JasmineWriter = Class.extend( Object, {
 	
 	
 	/**
+	 * Appends a {@link node.HelperMethod HelperMethod} node. Performs the following:
+	 * 
+	 * - Converts the `this` references to `thisSuite`.
+	 * - Removes the try/catch blocks around JsMockito verifications, if there are any.
+	 * - Replaces the YUI Test assertions with Jasmine assertions, if there are any.
+	 * 
+	 * @protected
+	 * @param {node.HelperMethod} helperMethodNode
+	 * @param {String[]} buffer The output buffer to append to.
+	 */
+	appendHelperMethod : function( helperMethodNode, buffer ) {
+		var methodName = helperMethodNode.getName(),
+		    argsList = helperMethodNode.getArgsList();
+				
+		this.appendOutput( 'function ' + methodName + '(' + argsList + ') {', buffer );
+		this.indentLevel++;
+		
+		// Run Transformations on the code
+		var methodBody = helperMethodNode.getBody();
+		methodBody = this.transformThisReferences( methodBody );
+		methodBody = this.removeTryCatchAroundJsMockito( methodBody );
+		methodBody = this.convertAssertions( methodBody );
+		
+		this.appendOutput( methodBody, buffer );
+		
+		this.indentLevel--;
+		this.appendOutput( '}', buffer );
+	},
+	
+	
+	/**
 	 * Appends a {@link node.Test Test} node, using the context of a {@link node.Should Should} node.
 	 * Performs the following:
 	 * 
 	 * - Converts the `this` references to `thisSuite`.
-	 * - Removes the try/catch blocks around JsMockito verifications.
-	 * - Replaces the YUI Test assertions with Jasmine assertion.
+	 * - Removes the try/catch blocks around JsMockito verifications, if there are any.
+	 * - Replaces the YUI Test assertions with Jasmine assertions, if there are any.
 	 * 
 	 * @protected
 	 * @param {node.Test} testNode
 	 * @param {node.Should} shouldNode
+	 * @param {node.HelperMethod[]} helperMethods
 	 * @param {String[]} buffer The output buffer to append to.
 	 */
-	appendTest : function( testNode, shouldNode, buffer ) {
+	appendTest : function( testNode, shouldNode, helperMethods, buffer ) {
 		var testName = testNode.getName(),
 		    ignoredTests = ( shouldNode ) ? shouldNode.getIgnoredTests() : {},
 		    shouldErrorTests = ( shouldNode ) ? shouldNode.getErrorTests() : {},
@@ -287,6 +328,7 @@ var JasmineWriter = Class.extend( Object, {
 		
 		// Run Transformations on the code
 		var testBody = testNode.getBody();
+		testBody = this.transformHelperMethodCalls( testBody, helperMethods );
 		testBody = this.transformThisReferences( testBody );
 		testBody = this.removeTryCatchAroundJsMockito( testBody );
 		testBody = this.convertAssertions( testBody );
@@ -338,6 +380,25 @@ var JasmineWriter = Class.extend( Object, {
 		return code;
 	},
 	
+	
+	/**
+	 * Converts helper method calls in the `input` string, which are usually of the form `this.myHelper()`,
+	 * to a non-method function call such as `myHelper()`. This is because helper methods are output as
+	 * regular function declarations, rather than as a part of a test case as they were in Ext.Test.
+	 * 
+	 * This method should be called before {@link #transformThisReferences} is, as {@link #transformThisReferences}
+	 * would make all `this` references become `thisSuite`, thus causing this method to have no effect, as it
+	 * looks for `this.methodName`.
+	 */
+	transformHelperMethodCalls : function( input, helperMethods ) {
+		for( var i = 0, len = helperMethods.length; i < len; i++ ) {
+			var methodName = helperMethods[ i ].getName(),
+			    re = new RegExp( '(this|me|self)\\.' + methodName + '(?![A-Za-z0-9_$])', 'g' );  // `this.methodName` *not* followed by an identifier character (i.e. `this.methodName` alone)
+			
+			input = input.replace( re, methodName );
+		}
+		return input;  // the transformed input
+	},
 	
 	
 	/**
