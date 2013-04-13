@@ -533,6 +533,11 @@ var JasmineWriter = Class.extend( Object, {
 							errMsg = args[ 2 ];
 							break;
 							
+						case 'isNaN' :
+							ret = "expect( isNaN( " + args[ 0 ] + " ) ).toBe( true );";
+							errMsg = args[ 1 ];
+							break;
+							
 						case 'areSame' :
 							ret = "expect( " + args[ 1 ] + " ).toBe( " + args[ 0 ] + " );";
 							errMsg = args[ 2 ];

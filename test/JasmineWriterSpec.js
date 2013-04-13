@@ -1013,6 +1013,15 @@ describe( 'node.JasmineWriter', function() {
 			} );
 			
 			
+			it( "should properly convert Y.Assert.isNaN() assertions", function() {
+				expect( jasmineWriter.convertAssertions( 'Y.Assert.isNaN( value );' ) )
+					.to.equal( 'expect( isNaN( value ) ).toBe( true );' );
+				
+				expect( jasmineWriter.convertAssertions( 'Y.Assert.isNaN( value, "value should have been NaN" );' ) )
+					.to.equal( 'expect( isNaN( value ) ).toBe( true );  // orig YUI Test err msg: "value should have been NaN"' );
+			} );
+			
+			
 			it( "should properly convert Y.Assert.areSame() assertions", function() {
 				expect( jasmineWriter.convertAssertions( 'Y.Assert.areSame( something, somethingElse );' ) )
 					.to.equal( 'expect( somethingElse ).toBe( something );' );
