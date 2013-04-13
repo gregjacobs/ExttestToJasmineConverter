@@ -137,14 +137,15 @@ var Parser = Class.extend( Object, {
 	 * @property {RegExp} testRe
 	 * 
 	 * The regular expression used to match a test method. This is a method that starts with the word 'test',
-	 * or has the word "should" in the method name.
+	 * or has the word "should" in the method name. However, this regular expression accepts any quoted method
+	 * names as tests, as some tests don't have the keyword "should" in them by accident.
 	 * 
 	 * Capturing groups:
 	 * 
 	 * 1. The Test name if the method name starts with 'test'.
 	 * 1. The Test name if the method name has the word 'should' in it.
 	 */
-	testRe : /(?:test_?([A-Za-z_\$]*?)|['"](.*? should .*?)['"])\s*:\s*function\(\)\s*\{/g,
+	testRe : /(?:test_?([A-Za-z_\$]*?)|['"](.+?)['"])\s*:\s*function\(\)\s*\{/g,
 	
 	/**
 	 * @protected
@@ -392,11 +393,14 @@ var Parser = Class.extend( Object, {
 	/**
 	 * @constructor
 	 * @param {String} input The input string.
+	 * @param {String} filePath The path to the file that it is processing. This is only used in debugging,
+	 *   when throwing parse errors.
 	 */
-	constructor : function( input ) {
+	constructor : function( input, filePath ) {
 		if( !input ) throw new Error( "`input` required" );
 		
 		this.input = input;
+		this.filePath = filePath;
 	},
 	
 	
@@ -606,7 +610,7 @@ var Parser = Class.extend( Object, {
 				this.skipWhitespaceAndComments();
 			}
 			
-			this.currentPos++;  // skip over the ']
+			this.currentPos++;  // skip over the ']'
 			this.skipWhitespaceAndComments();
 			
 			return items;
@@ -988,7 +992,7 @@ var Parser = Class.extend( Object, {
 			"A parse error occurred. Message: '" + message + "'",
 			"Was looking at text: `" + this.input.substr( this.currentPos, 50 ) + "`",
 			"Starting at character " + this.currentPos,
-			"On line: " + line,
+			"On line: " + line + " of file: " + this.filePath,
 			"========================================================================="
 		].join( '\n' ) );
 	},

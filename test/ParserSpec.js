@@ -924,6 +924,10 @@ describe( "Parser", function() {
 				'    ',
 				'    "something worthy of mordor should happen" : function() {',
 				'        Y.Assert.areSame( 1, 5 );',
+				'    },',
+				'    ',
+				'    "some test method that forgot the keyword that rhymes with could" : function() {',  // (i.e. "should")
+				'        Y.Assert.areSame( 1, 4 );',
 				'    }',
 				'}'
 			].join( "\n" );
@@ -953,12 +957,13 @@ describe( "Parser", function() {
 			
 			// Tests
 			var tests = testCaseNode.getTests();
-			expect( tests.length ).to.equal( 5 );
+			expect( tests.length ).to.equal( 6 );
 			expect( tests[ 0 ].getName() ).to.equal( "something should happen" );
 			expect( tests[ 1 ].getName() ).to.equal( "something else should happen" );
 			expect( tests[ 2 ].getName() ).to.equal( "something" );
 			expect( tests[ 3 ].getName() ).to.equal( "somethingElse" );
 			expect( tests[ 4 ].getName() ).to.equal( "something worthy of mordor should happen" );
+			expect( tests[ 5 ].getName() ).to.equal( "some test method that forgot the keyword that rhymes with could" );  // including this as a test, even though it doesn't have the keyword "should" in it.
 			
 			// Helper Methods
 			var helperMethods = testCaseNode.getHelperMethods();
