@@ -662,6 +662,37 @@ describe( "Parser", function() {
 		} );
 		
 		
+		it( "should parse an outer suite that is defined with an object literal, instead of `new Ext.test.Suite()`", function() {
+			var input = [
+				'tests.unit.thePackage.add( {',
+				'    name: "TheClass",',
+				'    items : [',
+				'        {',
+				'            name : "method() test case",',
+				'            "something should happen" : function() {',
+				'                var a = 1;',
+				'            },',
+				'            "something else should happen" : function() {',
+				'                var b = 2;',
+				'            }',
+				'        }',
+				'    ]',
+				'} );'
+			].join( "\n" );
+			
+			var parser = new Parser( input ),
+			    suite = parser.parseOuterSuite();
+			
+			expect( suite ).to.be.instanceOf( SuiteNode );
+			expect( suite.getName() ).to.equal( "unit.thePackage.TheClass" );
+			
+			expect( suite.getChildren().length ).to.equal( 1 );
+			expect( suite.getChildren()[ 0 ].getName() ).to.equal( "method() test case" );
+			expect( suite.getChildren()[ 0 ].getTests().length ).to.equal( 2 );
+			
+			expect( parser.currentPos ).to.equal( input.length );  // currentPos should have been advanced to past the Suite
+		} );
+		
 	} );
 	
 	

@@ -39,9 +39,13 @@ var Parser = Class.extend( Object, {
 	 * 
 	 * 1. The whitespace of indent to the outer suite.
 	 * 2. The package name for the suite. Example: 'unit.persistence'
-	 * 3. The Suite name.
+	 * 3. The direct instantiation of an `Ext.test.Suite` instance, if there is one. This is used by
+	 *    the code to determine what the end sequence looks like. It is possible that the suite was
+	 *    defined by just an object literal, in which case this will not match anything and be an
+	 *    empty string.
+	 * 4. The Suite name.
 	 */
-	outerSuiteRe : /^([ \t]*)tests\.(.*?)\.add\(\s*new\s*Ext\.test\.(?:Test)?Suite\(\s*\{\s*name\s*:\s*['"](.*?)['"],/gm,
+	outerSuiteRe : /^([ \t]*)tests\.(.*?)\.add\(\s*(new\s*Ext\.test\.(?:Test)?Suite\(\s*)?\{\s*name\s*:\s*['"](.*?)['"],/gm,
 	
 	/**
 	 * @protected
@@ -480,8 +484,9 @@ var Parser = Class.extend( Object, {
 		} else {
 			this.currentPos = outerSuiteMatch.index + outerSuiteMatch[ 0 ].length;
 			
-			var suiteName = outerSuiteMatch[ 2 ] + '.' + outerSuiteMatch[ 3 ],  // package name + class name
-			    children = this.parseSuiteItems();
+			var suiteName = outerSuiteMatch[ 2 ] + '.' + outerSuiteMatch[ 4 ],  // package name + class name
+			    children = this.parseSuiteItems(),
+			    isObjLiteralDefinition = !outerSuiteMatch[ 3 ];  // true if an object literal defines the suite, false if it was an instantiation of an Ext.test.Suite (i.e. `new Ext.test.Suite`)  
 			this.skipWhitespaceAndComments();
 			
 			// *** There is a possibility that an outer suite was actually used as a TestCase. If we have no Suite
@@ -509,9 +514,17 @@ var Parser = Class.extend( Object, {
 				node = new SuiteNode( suiteName, children || [] );
 			}
 			
-			var endOuterSuiteSeqMatch = this.getMatch( /\}\s*\)\s*\);/g );
-			if( !endOuterSuiteSeqMatch ) {
-				this.throwParseError( "Expected closing sequnce '} ) );' for the end of the outer Suite." );
+			var endOuterSuiteSeqMatch;
+			if( isObjLiteralDefinition ) {
+				endOuterSuiteSeqMatch = this.getMatch( /\}\s*\);/g );
+				if( !endOuterSuiteSeqMatch ) {
+					this.throwParseError( "Expected closing sequnce '} );' for the end of the outer Suite defined by object literal." );
+				}
+			} else {
+				endOuterSuiteSeqMatch = this.getMatch( /\}\s*\)\s*\);/g );
+				if( !endOuterSuiteSeqMatch ) {
+					this.throwParseError( "Expected closing sequnce '} ) );' for the end of the outer Suite defined by instantiation of `Ext.test.Suite()`." );
+				}
 			}
 			this.currentPos += endOuterSuiteSeqMatch[ 0 ].length;  // advanced past the closing sequence
 			
