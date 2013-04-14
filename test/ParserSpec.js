@@ -745,10 +745,10 @@ describe( "Parser", function() {
 		} );
 		
 		
-		it( "should parse an outer test case, with quotes in the name", function() {
+		it( "should parse an outer test case, surrounded by single quotes, with quotes in the name", function() {
 			var input = [
 				'tests.unit.thePackage.add( new Ext.test.TestCase( {',
-				'    name: \'The "Class"\',',
+				'    name: \'The \\\'best\\\' "Class"\',',
 				'    setUp : function() {',
 				'        this.a = 1;',
 				'        this.b = 1;',
@@ -759,8 +759,27 @@ describe( "Parser", function() {
 			var parser = new Parser( input ),
 			    testCaseNode = parser.parseOuterTestCase();
 			
-			expect( testCaseNode.getName() ).to.equal( 'unit.thePackage.The "Class"' );
+			expect( testCaseNode.getName() ).to.equal( 'unit.thePackage.The \\\'best\\\' "Class"' );
 		} );
+		
+		
+		it( "should parse an outer test case, surrounded by double quotes, with quotes in the name", function() {
+			var input = [
+				'tests.unit.thePackage.add( new Ext.test.TestCase( {',
+				'    name: "The \'best\' \\\"Class\\\"",',
+				'    setUp : function() {',
+				'        this.a = 1;',
+				'        this.b = 1;',
+				'    }',
+				'} ) );'
+			].join( '\n' );
+			
+			var parser = new Parser( input ),
+			    testCaseNode = parser.parseOuterTestCase();
+			
+			expect( testCaseNode.getName() ).to.equal( "unit.thePackage.The 'best' \\\"Class\\\"" );
+		} );
+		
 	} );
 	
 	
@@ -1006,7 +1025,7 @@ describe( "Parser", function() {
 				'    /*',
 				'     * Test the getAttributes() static method',
 				'     */',
-				'    name : "Test \'some()\' method",',
+				'    name : "Test \'some()\' \\"special\\" method",',  // has single quotes, and escaped double quotes
 				'    ',
 				'    setUp : function() {',
 				'        this.a = 1;',
@@ -1073,7 +1092,7 @@ describe( "Parser", function() {
 			    testCaseNode = parser.parseTestCase();
 			
 			expect( testCaseNode ).to.be.instanceOf( TestCaseNode );
-			expect( testCaseNode.getName() ).to.equal( "Test 'some()' method" );
+			expect( testCaseNode.getName() ).to.equal( "Test 'some()' \\\"special\\\" method" );
 			
 			expect( testCaseNode.getSetUp() ).to.not.equal( null );
 			expect( testCaseNode.getSetUp().getBody() ).to.match( /this\.a = 1;/ );

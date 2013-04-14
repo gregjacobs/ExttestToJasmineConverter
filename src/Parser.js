@@ -53,9 +53,10 @@ var Parser = Class.extend( Object, {
 	 * 
 	 * 1. The whitespace of indent to the outer suite.
 	 * 2. The package name for the suite. Example: 'unit.persistence'
-	 * 3. The Suite name.
+	 * 3. The Suite name, if it is surrounded in single quotes (empty string if not)
+	 * 4. The Suite name, if it is surrounded in double quotes (empty string if not)
 	 */
-	outerTestCaseRe : /^([ \t]*)tests\.(.*?)\.add\(\s*new\s*Ext\.test\.(?:Test)?Case\(\s*\{\s*name\s*:\s*['"](.*?)['"],/gm,
+	outerTestCaseRe : /^([ \t]*)tests\.(.*?)\.add\(\s*new\s*Ext\.test\.(?:Test)?Case\(\s*\{\s*name\s*:\s*(?:'((?:\\'|.)*?)'|"((?:\\"|.)*?)"),?/gm,
 	
 	/**
 	 * @protected
@@ -69,7 +70,7 @@ var Parser = Class.extend( Object, {
 	 * 1. The TestCase name, if it is surrounded in single quotes (empty string if not)
 	 * 2. The TestCase name, if it is surrounded in double quotes (empty string if not)
 	 */
-	testCaseRe : /\{\s*(?:\/\*[\s\S]*?\*\/)?\s*name\s*:\s*(?:'(.*?)'|"(.*?)"),?(?!\s*?ttype)/g,
+	testCaseRe : /\{\s*(?:\/\*[\s\S]*?\*\/)?\s*name\s*:\s*(?:'((?:\\'|.)*?)'|"((?:\\"|.)*?)"),?(?!\s*?ttype)/g,
 	
 	/**
 	 * @protected
@@ -506,7 +507,7 @@ var Parser = Class.extend( Object, {
 			this.currentPos = outerTestCaseMatch.index + outerTestCaseMatch[ 0 ].length;
 			
 			var testCaseItems = this.parseTestCaseItems(),
-			    testCaseName = outerTestCaseMatch[ 2 ] + '.' + outerTestCaseMatch[ 3 ];  // package name + class name
+			    testCaseName = outerTestCaseMatch[ 2 ] + '.' + ( outerTestCaseMatch[ 3 ] || outerTestCaseMatch[ 4 ] );  // package name + class name
 			this.skipWhitespaceAndComments();
 			
 			var endOuterTestCaseSeqMatch = this.getMatch( /\}\s*\)\s*\);/g );
