@@ -766,7 +766,8 @@ describe( 'node.JasmineWriter', function() {
 				'this.b.destroy();',
 				'this.$myEl.doSomething();',
 				'this._someVar;',
-				'this._super'  // this one shouldn't be changed
+				'this._super',    // this one shouldn't be changed
+				'this.addEvents'  // this one shouldn't be changed
 			].join( "\n" );
 			
 			var output = jasmineWriter.transformThisReferences( input );
@@ -775,7 +776,8 @@ describe( 'node.JasmineWriter', function() {
 				'thisSuite.b.destroy();',
 				'thisSuite.$myEl.doSomething();',
 				'thisSuite._someVar;',
-				'this._super'
+				'this._super',
+				'this.addEvents'
 			].join( "\n" ) );
 		} );
 		

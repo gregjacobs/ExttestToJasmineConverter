@@ -405,14 +405,20 @@ var JasmineWriter = Class.extend( Object, {
 	 * Transform the `this` reference in the block of code to use `thisSuite` instead, which will be used when the 
 	 * Jasmine transformation is output by the {@link JasmineWriter}.
 	 * 
-	 * Does not transform `this._super` references though, as those will always be in a local subclasses' methods, 
-	 * and we don't want to touch that.
+	 * This method tries to be a little smart about the conversions though, for local variable subclasses' methods,
+	 * which we don't want to touch. It avoids changing:
+	 * 
+	 * - `this._super`
+	 * - `this.addEvents`
+	 * 
+	 * Unfortunately, there may still be other `this` references that shouldn't have been changed, but these at least
+	 * cover the basic ones, and the rest can be converted back manually.
 	 * 
 	 * @param {String} input The input code string.
 	 * @return {String} The input, with `this` references converted to `thisSuite`.
 	 */
 	transformThisReferences : function( input ) {
-		return input.replace( /\bthis\.(?=[A-Za-z_\$])(?!_super)/g, 'thisSuite.' );
+		return input.replace( /\bthis\.(?=[A-Za-z_\$])(?!_super|addEvents)/g, 'thisSuite.' );
 	},
 	
 	
