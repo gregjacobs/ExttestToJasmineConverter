@@ -51,7 +51,7 @@ if( argv.length <= 2 || argv.indexOf( '-h' ) !== -1 || argv.indexOf( '--help' ) 
 var inputPath = "",
     outputPath = "",
     inputMask = "*",   // all files by default
-    outputMask = "*",  // use original filename by default
+    outputMask = "",   // use original filename by default
     isDirectory = false;  // will be set to true if processing a directory (i.e. the inputPath is a directory)
 
 for( var i = 2, len = argv.length; i < len; i++ ) {  // start at the 3rd argument, which would be the first argument to the program
@@ -148,7 +148,7 @@ function processPath( currentPath ) {
 		
 		if( match ) {
 			var outputDir = path.dirname( currentPath ),
-			    outputFilename = outputMask.replace( /\*/, match[ 1 ] );  // replace the '*' in the output mask with the part that matched the '*' in the input mask
+			    outputFilename = ( !outputMask ) ? filename : outputMask.replace( /\*/, match[ 1 ] );  // replace the '*' in the output mask with the part that matched the '*' in the input mask
 			
 			if( outputPath ) {
 				var re = new RegExp( "^" + inputPath.replace( /\\/g, "\\\\" ) );  // escape backslashes in directory string for regex (windows only)
@@ -182,6 +182,7 @@ _.forOwn( fileMappings, function( outputPath, inputPath ) {
 		mkdirp.sync( path.dirname( outputPath ) );
 		
 		fs.writeFileSync( outputPath, outputStr, 'utf8' );
+		console.log( "Wrote: " + outputPath );
 	} else {
 		console.log( outputStr );
 	}
