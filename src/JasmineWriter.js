@@ -532,6 +532,11 @@ var JasmineWriter = Class.extend( Object, {
 							errMsg = args[ 1 ];
 							break;
 							
+						case 'isNumber' :
+							ret = "expect( _.isNumber( " + args[ 0 ] + " ) ).toBe( true );";
+							errMsg = args[ 1 ];
+							break;
+							
 						case 'isObject' :
 							ret = "expect( _.isObject( " + args[ 0 ] + " ) ).toBe( true );";
 							errMsg = args[ 1 ];

@@ -998,6 +998,15 @@ describe( 'node.JasmineWriter', function() {
 			} );
 			
 			
+			it( "should properly convert Y.ArrayAssert.isNumber() assertions", function() {
+				expect( jasmineWriter.convertAssertions( 'Y.Assert.isNumber( myNum );' ) )
+					.to.equal( 'expect( _.isNumber( myNum ) ).toBe( true );' );
+				
+				expect( jasmineWriter.convertAssertions( 'Y.Assert.isNumber( myNum, "myNum should be a number" );' ) )
+					.to.equal( 'expect( _.isNumber( myNum ) ).toBe( true );  // orig YUI Test err msg: "myNum should be a number"' );
+			} );
+			
+			
 			it( "should properly convert Y.Assert.isObject() assertions", function() {
 				expect( jasmineWriter.convertAssertions( 'Y.Assert.isObject( someVar );' ) )
 					.to.equal( 'expect( _.isObject( someVar ) ).toBe( true );' );
