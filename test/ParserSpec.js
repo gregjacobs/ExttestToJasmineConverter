@@ -824,6 +824,143 @@ describe( "Parser", function() {
 		} );
 		
 		
+		it( "should return a Suite with nested Suites and TestCases", function() {
+			var input = [
+				'{',
+				'    name  : "method() suite",',
+				'    ttype : "suite",',
+				'    items : [',
+				'        {',
+				'            /*',
+				'             * Nested Suite',
+				'             */',
+				'            name : "Nested Suite",',
+				'            ttype: "testsuite",',
+				'            items : [',
+				'                {',
+				'                    name: "TestCase Under Nested Suite",',
+				'                    "something should happen" : function() {},',
+				'                    "something else should happen" : function() {}',
+				'                }',
+				'            ]',
+				'        },',
+				'        {',
+				'            /*',
+				'             * TestCase',
+				'             */',
+				'            name : "TestCase",',
+				'            "something should happen" : function() {},',
+				'            "something else should happen" : function() {},',
+				'            "something even more should happen" : function() {}',
+				'        },',
+				'        {',
+				'            /*',
+				'             * Nested Suite 2',
+				'             */',
+				'            name : "Nested Suite 2",',
+				'            ttype: "testsuite",',
+				'            items : [',
+				'                {',
+				'                    name: "TestCase Under Nested Suite 2",',
+				'                    "something should happen 2" : function() {},',
+				'                    "something else should happen 2" : function() {}',
+				'                }',
+				'            ]',
+				'        },',
+				'        {',
+				'            /*',
+				'             * Nested Suite 3',
+				'             */',
+				'            name : "Nested Suite 3",',
+				'            ttype: "testsuite",',
+				'            items : [',
+				'                {',
+				'                    name: "TestCase Under Nested Suite 3",',
+				'                    "something should happen 3" : function() {},',
+				'                    "something else should happen 3" : function() {}',
+				'                }',
+				'            ]',
+				'        },',
+				'        {',
+				'            /*',
+				'             * TestCase 2',
+				'             */',
+				'            name : "TestCase 2",',
+				'            "something should happen 2" : function() {},',
+				'            "something else should happen 2" : function() {},',
+				'            "something even more should happen 2" : function() {}',
+				'        },',
+				'        {',
+				'            /*',
+				'             * TestCase 3',
+				'             */',
+				'            name : "TestCase 3",',
+				'            "something should happen 3" : function() {},',
+				'            "something else should happen 3" : function() {},',
+				'            "something even more should happen 3" : function() {}',
+				'        },',
+				'    ]',
+				'}'
+			].join( '\n' );
+			
+			var parser = new Parser( input ),
+			    suiteNode = parser.parseSuite();
+			
+			expect( suiteNode ).to.not.equal( null );
+			expect( suiteNode ).to.be.instanceOf( SuiteNode );
+			expect( suiteNode.getName() ).to.equal( "method() suite" );
+			expect( suiteNode.getChildren().length ).to.equal( 6 );
+			
+			var child0 = suiteNode.getChildren()[ 0 ];
+			expect( child0 ).to.be.instanceOf( SuiteNode );
+			expect( child0.getName() ).to.equal( "Nested Suite" );
+			expect( child0.getChildren().length ).to.equal( 1 );
+			expect( child0.getChildren()[ 0 ] ).to.be.instanceOf( TestCaseNode );
+			expect( child0.getChildren()[ 0 ].getName() ).to.equal( "TestCase Under Nested Suite" );
+			expect( child0.getChildren()[ 0 ].getTests().length ).to.equal( 2 );
+			
+			var child1 = suiteNode.getChildren()[ 1 ];
+			expect( child1 ).to.be.instanceOf( TestCaseNode );
+			expect( child1.getName() ).to.equal( "TestCase" );
+			expect( child1.getTests().length ).to.equal( 3 );
+			expect( child1.getTests()[ 0 ].getName() ).to.equal( "something should happen" );
+			expect( child1.getTests()[ 1 ].getName() ).to.equal( "something else should happen" );
+			expect( child1.getTests()[ 2 ].getName() ).to.equal( "something even more should happen" );
+			
+			var child2 = suiteNode.getChildren()[ 2 ];
+			expect( child2 ).to.be.instanceOf( SuiteNode );
+			expect( child2.getName() ).to.equal( "Nested Suite 2" );
+			expect( child2.getChildren().length ).to.equal( 1 );
+			expect( child2.getChildren()[ 0 ] ).to.be.instanceOf( TestCaseNode );
+			expect( child2.getChildren()[ 0 ].getName() ).to.equal( "TestCase Under Nested Suite 2" );
+			expect( child2.getChildren()[ 0 ].getTests().length ).to.equal( 2 );
+			
+			var child3 = suiteNode.getChildren()[ 3 ];
+			expect( child3 ).to.be.instanceOf( SuiteNode );
+			expect( child3.getName() ).to.equal( "Nested Suite 3" );
+			expect( child3.getChildren().length ).to.equal( 1 );
+			expect( child3.getChildren()[ 0 ] ).to.be.instanceOf( TestCaseNode );
+			expect( child3.getChildren()[ 0 ].getName() ).to.equal( "TestCase Under Nested Suite 3" );
+			expect( child3.getChildren()[ 0 ].getTests().length ).to.equal( 2 );
+			
+			var child4 = suiteNode.getChildren()[ 4 ];
+			expect( child4 ).to.be.instanceOf( TestCaseNode );
+			expect( child4.getName() ).to.equal( "TestCase 2" );
+			expect( child4.getTests().length ).to.equal( 3 );
+			expect( child4.getTests()[ 0 ].getName() ).to.equal( "something should happen 2" );
+			expect( child4.getTests()[ 1 ].getName() ).to.equal( "something else should happen 2" );
+			expect( child4.getTests()[ 2 ].getName() ).to.equal( "something even more should happen 2" );
+			
+			var child5 = suiteNode.getChildren()[ 5 ];
+			expect( child5 ).to.be.instanceOf( TestCaseNode );
+			expect( child5.getName() ).to.equal( "TestCase 3" );
+			expect( child5.getTests().length ).to.equal( 3 );
+			expect( child5.getTests()[ 0 ].getName() ).to.equal( "something should happen 3" );
+			expect( child5.getTests()[ 1 ].getName() ).to.equal( "something else should happen 3" );
+			expect( child5.getTests()[ 2 ].getName() ).to.equal( "something even more should happen 3" );
+		} );
+		
+		
 		
 		it( "should return null when there is not a suite node at the current character position", function() {
 			var input = [

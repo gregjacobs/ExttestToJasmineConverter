@@ -59,19 +59,6 @@ var Parser = Class.extend( Object, {
 	
 	/**
 	 * @protected
-	 * @property {RegExp} suiteRe
-	 * 
-	 * The regular expression used to match inner suites. This is as opposed to the {@link #outerSuiteRe outer suite},
-	 * where there should only be one.
-	 * 
-	 * Capturing groups:
-	 * 
-	 * 1. The Suite name.
-	 */
-	suiteRe : /\{\s*(?:\/\*[\s\S]*?\*\/)?\s*name\s*:\s*['"](.*?)['"],\s*?ttype\s*:\s*['"].*?['"],?/g,
-	
-	/**
-	 * @protected
 	 * @property {RegExp} testCaseRe
 	 * 
 	 * The regular expression used to match TestCases. This is as opposed to the {@link #outerTestCaseRe outer test case},
@@ -143,9 +130,10 @@ var Parser = Class.extend( Object, {
 	 * Capturing groups:
 	 * 
 	 * 1. The Test name if the method name starts with 'test'.
-	 * 1. The Test name if the method name has the word 'should' in it.
+	 * 2. The Test name if the method name was surrounded by single quotes
+	 * 3. The Test name if the method name was surrounded by double quotes.
 	 */
-	testRe : /(?:test_?([A-Za-z_\$]*?)|['"](.+?)['"])\s*:\s*function\(\)\s*\{/g,
+	testRe : /(?:test_?([A-Za-z_\$]*?)|'(.+?)'|"(.+?)")\s*:\s*function\(\)\s*\{/g,
 	
 	/**
 	 * @protected
@@ -549,27 +537,50 @@ var Parser = Class.extend( Object, {
 	parseSuite : function() {
 		this.skipWhitespaceAndComments();
 		
-		var suiteMatch = this.getMatch( this.suiteRe ),  // attempts to match the regex at the currentPos
-		    input = this.input;
+		// Note: originally was using a regular expression to try to determine if the entity at the currentPos
+		// was a Suite or not, but it had an issue where if the entity was a TestCase *followed* by a Suite, that
+		// it would think it was a suite. This was due to trying to match a multi-line comment above the TestCase's
+		// name, which for some reason, would match all the way down into the next Suite's `*/` sequence, even though
+		// the regular expression was set to be non-greedy. So, this implementation eval's the object literal, and
+		// determines that way if it is a nested suite or not.
 		
-		if( !suiteMatch ) {
+		if( this.peekChar() !== '{' ) {
 			return null;
 			
 		} else {
-			// if there's a Suite match at the current position
-			this.currentPos += suiteMatch[ 0 ].length;
-			this.skipWhitespaceAndComments();
+			var closingBraceIdx = Parser.findMatchingClosingBrace( this.input, this.currentPos ),
+			    obj = eval( '(' + this.input.substring( this.currentPos, closingBraceIdx + 1 ) + ')' );  // eval the object literal, so we can simply read its properties
 			
-			var suiteName = suiteMatch[ 1 ],
-			    children = this.parseSuiteItems() || [];  // default to an empty array
-			
-			if( this.peekChar() !== '}' ) {
-				this.throwParseError( "Expected closing brace '}' for the end of a Suite." );
+			var ttype = obj.ttype;
+			if( !ttype || ( ttype.toLowerCase() !== 'suite' && ttype.toLowerCase() !== 'testsuite' ) ) {
+				return null;
+				
+			} else {
+				this.currentPos++;  // advance past the '{'
+				this.skipWhitespaceAndComments();
+				
+				
+				// Find the 'ttype' property, and advance the currentPos past it
+				var ttypeRe = /ttype\s*:\s*['"].*?['"],?/g;
+				ttypeRe.lastIndex = this.currentPos;
+				
+				var match = ttypeRe.exec( this.input );
+				this.currentPos = ttypeRe.lastIndex;
+				this.skipWhitespaceAndComments();
+				
+				
+				// Parse the suite's items
+				var suiteName = obj.name,
+				    children = this.parseSuiteItems() || [];  // default to an empty array
+				
+				this.skipWhitespaceAndComments();
+				if( this.peekChar() !== '}' ) {
+					this.throwParseError( "Expected closing brace '}' for the end of a Suite." );
+				}
+				this.currentPos++;  // advanced past the closing brace '}'
+				
+				return new SuiteNode( suiteName, children );
 			}
-			this.currentPos++;  // advanced past the closing brace '}'
-			
-			
-			return new SuiteNode( suiteName, children );
 		}
 	},
 	
@@ -599,7 +610,7 @@ var Parser = Class.extend( Object, {
 			while( this.peekChar() !== ']' ) {
 				var item = this.parseSuite() || this.parseTestCase();
 				if( !item ) {
-					this.throwParseError( "Expected a Suite or TestCase while parsing the items of a Suite." );
+					this.throwParseError( "Expected a child Suite or TestCase while parsing the items of a Suite." );
 				}
 				items.push( item );
 				
@@ -610,6 +621,9 @@ var Parser = Class.extend( Object, {
 				this.skipWhitespaceAndComments();
 			}
 			
+			if( this.peekChar() !== ']' ) {
+				this.throwParseError( "Expected an ']' to close the suite items" );
+			}
 			this.currentPos++;  // skip over the ']'
 			this.skipWhitespaceAndComments();
 			
@@ -625,7 +639,7 @@ var Parser = Class.extend( Object, {
 	 * @return {node.TestCase} The TestCase node parsed at {@link #currentPos}, or `null` if a TestCase was
 	 *   not matched.
 	 */
-	parseTestCase : function() {		
+	parseTestCase : function() {
 		return this.parseAnonymousTestCase() || this.parseDirectInstantiationTestCase();
 	},
 	
@@ -895,7 +909,7 @@ var Parser = Class.extend( Object, {
 			
 			var closeBraceIdx = Parser.findMatchingClosingBrace( this.input, openBraceIdx );
 			
-			var name = testMatch[ 1 ] || testMatch[ 2 ],
+			var name = testMatch[ 1 ] || testMatch[ 2 ] || testMatch[ 3 ],
 			    testBody = this.input.substring( openBraceIdx + 1, closeBraceIdx );
 			testNode = new TestNode( name, testBody );
 			
@@ -990,7 +1004,7 @@ var Parser = Class.extend( Object, {
 			"",
 			"=========================================================================",
 			"A parse error occurred. Message: '" + message + "'",
-			"Was looking at text: `" + this.input.substr( this.currentPos, 50 ) + "`",
+			"Was looking at text: `" + this.input.substr( this.currentPos, 200 ) + "`",
 			"Starting at character " + this.currentPos,
 			"On line: " + line + " of file: " + this.filePath,
 			"========================================================================="
