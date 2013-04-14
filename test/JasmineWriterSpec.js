@@ -758,14 +758,15 @@ describe( 'node.JasmineWriter', function() {
 	
 	describe( 'transformThisReferences()', function() {
 		
-		it( "should change all `this` references to `thisSuite`", function() {
+		it( "should change all `this` references to `thisSuite`, except the following: `this._super()`", function() {
 			var jasmineWriter = new JasmineWriter();
 			
 			var input = [
 				'this.a.destroy();',
 				'this.b.destroy();',
 				'this.$myEl.doSomething();',
-				'this._someVar;'
+				'this._someVar;',
+				'this._super'  // this one shouldn't be changed
 			].join( "\n" );
 			
 			var output = jasmineWriter.transformThisReferences( input );
@@ -773,7 +774,8 @@ describe( 'node.JasmineWriter', function() {
 				'thisSuite.a.destroy();',
 				'thisSuite.b.destroy();',
 				'thisSuite.$myEl.doSomething();',
-				'thisSuite._someVar;'
+				'thisSuite._someVar;',
+				'this._super'
 			].join( "\n" ) );
 		} );
 		
