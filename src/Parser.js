@@ -465,20 +465,49 @@ var Parser = Class.extend( Object, {
 	 * Parses an outer Suite at the {@link #currentPos}, or returns `null` if a Suite was not matched.
 	 * 
 	 * @protected
-	 * @return {node.Suite} The Suite node for the outer suite.
+	 * @return {node.Node} The Suite node for the outer suite. However, outer Suites were sometimes used
+	 *   as outer {@link node.TestCase TestCases} instead, and in that case, a {@link node.TestCase} will
+	 *   be returned.
 	 */
 	parseOuterSuite : function() {
 		var outerSuiteMatch = this.getMatch( this.outerSuiteRe );  // attempts to match the regex at the currentPos
 		
+		var node = null;
+		
 		if( !outerSuiteMatch ) {
-			return null;
+			return node;
 			
 		} else {
 			this.currentPos = outerSuiteMatch.index + outerSuiteMatch[ 0 ].length;
 			
 			var suiteName = outerSuiteMatch[ 2 ] + '.' + outerSuiteMatch[ 3 ],  // package name + class name
-			    children = this.parseSuiteItems() || [];
+			    children = this.parseSuiteItems();
 			this.skipWhitespaceAndComments();
+			
+			// *** There is a possibility that an outer suite was actually used as a TestCase. If we have no Suite
+			// items, attempt to parse it as such. Otherwise, we'll consider it an empty Suite.
+			if( !children ) {
+				var testCaseItems = null;
+				try {
+					testCaseItems = this.parseTestCaseItems();  // will throw an error if it didn't find the correct constructs
+				} catch( e ) {}  // ignore exception
+				
+				if( testCaseItems && ( testCaseItems.should || testCaseItems.setUp || testCaseItems.tearDown || testCaseItems.tests.length > 0 ) ) {
+					node = new TestCaseNode( 
+						suiteName, 
+						testCaseItems.should, 
+						testCaseItems.setUp, 
+						testCaseItems.tearDown, 
+						testCaseItems.tests, 
+						testCaseItems.helperMethods 
+					);
+				}
+			}
+			
+			// Don't have a node, from being parsed as a TestCase instead of a Suite, then it must be a Suite
+			if( !node ) {
+				node = new SuiteNode( suiteName, children || [] );
+			}
 			
 			var endOuterSuiteSeqMatch = this.getMatch( /\}\s*\)\s*\);/g );
 			if( !endOuterSuiteSeqMatch ) {
@@ -486,7 +515,7 @@ var Parser = Class.extend( Object, {
 			}
 			this.currentPos += endOuterSuiteSeqMatch[ 0 ].length;  // advanced past the closing sequence
 			
-			return new SuiteNode( suiteName, children );
+			return node;
 		}
 	},
 	

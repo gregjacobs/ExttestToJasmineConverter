@@ -633,6 +633,35 @@ describe( "Parser", function() {
 			expect( parser.currentPos ).to.equal( input.length );  // currentPos should have been advanced to past the Suite
 		} );
 		
+		
+		it( "should parse an outer suite *that is really a TestCase*, returning a TestCase node in this situation", function() {
+			var input = [
+				'tests.unit.thePackage.add( new Ext.test.TestSuite( {',
+				'    name: "TheClass",',
+				'    ',
+				'    "something should happen" : function() {',
+				'        var a = 1;',
+				'    },',
+				'    "something else should happen" : function() {',
+				'        var a = 2;',
+				'    }',
+				'} ) );'
+			].join( "\n" );
+			
+			var parser = new Parser( input ),
+			    suite = parser.parseOuterSuite();
+			
+			expect( suite ).to.be.instanceOf( TestCaseNode );
+			expect( suite.getName() ).to.equal( "unit.thePackage.TheClass" );
+			
+			expect( suite.getTests().length ).to.equal( 2 );
+			expect( suite.getTests()[ 0 ].getName() ).to.equal( "something should happen" );
+			expect( suite.getTests()[ 1 ].getName() ).to.equal( "something else should happen" );
+			
+			expect( parser.currentPos ).to.equal( input.length );  // currentPos should have been advanced to past the Suite
+		} );
+		
+		
 	} );
 	
 	
