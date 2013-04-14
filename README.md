@@ -1,7 +1,8 @@
 ExttestToJasmineConverter
 =========================
 
-Simple project to convert my old Ext.Test with YUI unit tests into Jasmine unit tests.
+(Somewhat) Simple project to convert my old Ext.Test with [YUI](http://yuilibrary.com/yui/docs/test/) unit tests into 
+[Jasmine](http://pivotal.github.io/jasmine/) unit tests.
 
 Ext.Test was a good harness for a while, but with larger and larger projects, it was getting harder to figure out exactly 
 where errors were occurring. Also, Jasmine's syntax is just shorter and more readable. And with its ability to show a stack 
@@ -38,25 +39,71 @@ Mapping files:
 
 ### Some Notes:
 
-1. Remove Suite-level (not TestCase level) setUp() / tearDown() methods. The parser doesn't handle these, and most are 
-   empty anyway. You'll get a parse error to know which ones need to be removed.
+1. **Quick Fixes**: The parser/converter won't convert things perfectly. It's a mixture of a recursive descent parser and 
+   regular expression search/replacement of high-level Ext.Test / YUI Test constructs (but not of JavaScript itself). So, 
+   some things need to be fixed beforehand and as you go along (as outlined below). Here a few quick fixes to start which 
+   mess things up that I found when running it on the Jux tests (at least the ones I've had since last July):
    
-2. The converter converts local `this` references to `thisSuite`, to continue to refer to the suite's fixture (which
-   is generated as `thisSuite`). However there is an issue if a test defines a subclass in a local variable, and it uses the 
-   `this` reference to refer to itself. These will be incorrectly changed to `thisSuite`, and will need to be changed back 
-   (to refer to the subclass instance, not the suite's fixture).
+   - Remove the comment in ui/ContainerTest.js, line ~152 which has: `// Note: for some reason, Y.Assert.isInstanceOf() is screwing up the test harness` ...
+
+2. **Suite-level setUp/tearDown**: Remove Suite-level (not TestCase level) setUp() / tearDown() methods. The parser doesn't 
+   handle these, and most are empty anyway. You'll get a parse error to know which ones need to be removed.
+   
+   For the ones that actually do something, just copy/paste the code in the suite-level setUp() / tearDown() methods in place
+   of where the child TestCases call `this.getParentSuite()`
+   
+   Notable examples: 
+   - app/components/mediaPicker/thumbnailsContainer/ThumbnailsContainerTest.js
+   - app/routers/Test_Gallery.js
+   - app/views/quark/streetview/StreetviewTest.js (can probably remove this file if it's still empty)
+   - app/views/quark/streetview/DesktopStreetviewTest.js
+   - ui/ContainerTest.js (just remove empty suite-level `setUp()`)
+   - ui/formFields/TestAreaFieldTest.js (just remove empty suite-level `setUp()`)
+   - ui/formFields/TestFieldTest.js (just remove empty suite-level `setUp()`)
+   - ui/layout/TabsLayoutTest.js (just remove empty suite-level `setUp()`)
+
+3. **`defaults` property in Suite**: Occassionally used Ext's `defaults` property in test suites to copy setUp/tearDown methods 
+   to each child TestCase. Remove this property, and just copy and paste the setUp/tearDown manually.
+   
+   Notable example: app/components/controls/PictureSelectorTest.js
+
+4. **`this` reference conversions**: The converter converts local `this` references to `thisSuite`, to continue to refer to 
+   the suite's fixture (which is generated as `thisSuite`). However there is an issue if a test defines a subclass in a local 
+   variable, and it uses the `this` reference to refer to itself. These will be incorrectly changed to `thisSuite`, and will 
+   need to be changed back (to refer to the subclass instance, not the suite's fixture).
    
    Notable examples of this are the `get()` and `set()` methods in Kevlar's Model class tests. Basically find/replace 
    `thisSuite.get` to `this.get`, and `thisSuite.set` to `this.set`.
-   
-3. The converter does not rewrite asynchronous tests. There are only a few async tests as far as I remember. These tests
-   use YUI Test's wait() method. Just look for `.wait` and rewrite them to use Jasmine's async features (or Jasmine's clock
-   mocking features to make the tests synchronous where possible).
 
-4. Every Suite and TestCase (the container that holds the individual tests) must have a `name` property at the top. I may
-   not have this in some test files. Notable examples that may not have the `name` property are the integration tests in 
-   Kevlar, where I added an extra level of nesting where I didn't need to. Add a `name` property to these. You'll get parse
-   errors where they're missing.
+5. **Async Tests**: The converter does not rewrite asynchronous tests. There are only a few async tests as far as I remember. 
+   These tests use YUI Test's wait() method. Just look for `.wait` and `.resume`, and rewrite them to use Jasmine's async 
+   features (or Jasmine's clock mocking features to make the tests synchronous where possible).
+
+6. **Suite/TestCase `name` property**: Every Suite and TestCase (the container that holds the individual tests) must have a 
+   `name` property at the top. I may not have this in some test files. Notable examples that may not have the `name` property 
+   are the integration tests in Kevlar, where I added an extra level of nesting where I didn't need to. Add a `name` property
+   to these. You'll get parse errors where they're missing.
    
-All in all, this project should get you about 98% of the way there, and then you'll just have to make a few manual adjustments
-to get your new Jasmine tests working correctly.
+   Noteable examples: 
+   - app/models/VideoTest.js (which you can probably just delete actually, if there are still no tests for it)
+   - ui/ComponentTest.js (`bubble()` testcase needs a name property)
+
+7. **Non-Ext.Test files**: The converter won't process files that aren't Ext.Test files. You will have to either remove the 
+   `suites.js` files, or rename them to have another extension while you use the `--inputMask=*.js` arg.
+
+8. **Ext.test.Case class**: You'll have to create and include a simple `Ext.test.Case` (and possibly an `Ext.test.TestCase`) 
+   class, which just has empty `setUp` and `tearDown` methods. This is because some test files extend this class for creating 
+   their fixture. So just add this as a temporary thing so you don't have to include all of the YUI and Ext.Test files in your 
+   Jasmine harness.
+   
+   This should do the trick right inside the Jasmine html file, before including your tests:
+   ```javascript
+   var Ext = { test: {} };
+   Ext.test.Case = Ext.test.TestCase = Class.extend( Object, {
+       setUp    : function() {},
+       tearDown : function() {}
+   } );
+   ```
+
+All in all, this converter should get you about 96-97% of the way there, and then you'll just have to make a few manual 
+adjustments to get your Jasmine tests working correctly.
