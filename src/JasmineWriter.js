@@ -501,9 +501,14 @@ var JasmineWriter = Class.extend( Object, {
 			
 			switch( assertPkg ) {
 				case 'Assert' :
-					switch( assertFn ) {							
+					switch( assertFn ) {
 						case 'isUndefined' :
-							ret = "expect( _.isUndefined( " + args[ 0 ] + " ) ).toBe( true );";
+							ret = "expect( " + args[ 0 ] + " ).toBeUndefined();";
+							errMsg = args[ 1 ];
+							break;
+						
+						case 'isNotUndefined' :
+							ret = "expect( " + args[ 0 ] + " ).not.toBeUndefined();";
 							errMsg = args[ 1 ];
 							break;
 						

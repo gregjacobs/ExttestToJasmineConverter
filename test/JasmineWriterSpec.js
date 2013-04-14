@@ -934,14 +934,22 @@ describe( 'node.JasmineWriter', function() {
 		} );
 		
 		
-		describe( "Y.Assert package assertions", function() {			
+		describe( "Y.Assert package assertions", function() {
 			
 			it( "should properly convert Y.ArrayAssert.isUndefined() assertions", function() {
 				expect( jasmineWriter.convertAssertions( 'Y.Assert.isUndefined( myObj );' ) )
-					.to.equal( 'expect( _.isUndefined( myObj ) ).toBe( true );' );
+					.to.equal( 'expect( myObj ).toBeUndefined();' );
 				
 				expect( jasmineWriter.convertAssertions( 'Y.Assert.isUndefined( myObj, "myObj should be undefined" );' ) )
-					.to.equal( 'expect( _.isUndefined( myObj ) ).toBe( true );  // orig YUI Test err msg: "myObj should be undefined"' );
+					.to.equal( 'expect( myObj ).toBeUndefined();  // orig YUI Test err msg: "myObj should be undefined"' );
+			} );
+			
+			it( "should properly convert Y.ArrayAssert.isNotUndefined() assertions", function() {
+				expect( jasmineWriter.convertAssertions( 'Y.Assert.isNotUndefined( myObj );' ) )
+					.to.equal( 'expect( myObj ).not.toBeUndefined();' );
+				
+				expect( jasmineWriter.convertAssertions( 'Y.Assert.isNotUndefined( myObj, "myObj should not be undefined" );' ) )
+					.to.equal( 'expect( myObj ).not.toBeUndefined();  // orig YUI Test err msg: "myObj should not be undefined"' );
 			} );
 			
 			

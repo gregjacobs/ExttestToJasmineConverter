@@ -34,7 +34,7 @@ describe( "unit.ui.formFields.DropdownField", function() {
 					options : []
 				} );
 				
-				expect( _.isUndefined( field.getValue() ) ).toBe( true );  // orig YUI Test err msg: "The value should be undefined. testMode = " + thisSuite.testModes[ rendered ]			
+				expect( field.getValue() ).toBeUndefined();  // orig YUI Test err msg: "The value should be undefined. testMode = " + thisSuite.testModes[ rendered ]			
 				field.destroy();  // clean up
 			}
 		} );
@@ -49,7 +49,7 @@ describe( "unit.ui.formFields.DropdownField", function() {
 					value: 42
 				} );
 				
-				expect( _.isUndefined( field.getValue() ) ).toBe( true );  // orig YUI Test err msg: "The value should be undefined. testMode = " + thisSuite.testModes[ rendered ]			
+				expect( field.getValue() ).toBeUndefined();  // orig YUI Test err msg: "The value should be undefined. testMode = " + thisSuite.testModes[ rendered ]			
 				field.destroy();  // clean up
 			}
 		} );

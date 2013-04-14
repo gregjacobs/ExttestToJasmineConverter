@@ -21,7 +21,7 @@ describe( "unit.ui.formFields.AbstractField", function() {
 				// value: "my value"             -- intentionally leaving this here
 			} );
 			
-			expect( _.isUndefined( field.getValue() ) ).toBe( true );  // orig YUI Test err msg: "the initial value should be undefined. rendered = " + !!rendered
+			expect( field.getValue() ).toBeUndefined();  // orig YUI Test err msg: "the initial value should be undefined. rendered = " + !!rendered
 			
 			field.destroy();  // clean up
 		}
