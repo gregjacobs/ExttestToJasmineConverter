@@ -1,5 +1,5 @@
 /*global require, module */
-var Node = require( './Node' );
+var AbstractNode = require( './Node' );
 
 
 /**
@@ -9,7 +9,7 @@ var Node = require( './Node' );
  * Represents an Ext.Test Suite. A Suite has a name, and may be composed of one or more
  * child {@link node.Suite Suite} or {@link node.TestCase TestCase} nodes. 
  */
-var SuiteNode = Node.extend( {
+var SuiteNode = AbstractNode.extend( {
 	
 	/**
 	 * @constructor

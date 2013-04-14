@@ -9,10 +9,10 @@ var Class = require( '../Class' );
  * Represent a parsed Ext.Test node. This is the base class for Suites, TestCases, and
  * Tests.
  */
-var Node = Class.extend( Object, {
+var AbstractNode = Class.extend( Object, {
 	
 	abstractClass : true
 	
 } );
 
-module.exports = Node;
+module.exports = AbstractNode;

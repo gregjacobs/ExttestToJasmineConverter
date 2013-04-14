@@ -1,5 +1,5 @@
 /*global require, module */
-var Node = require( './Node' );
+var AbstractNode = require( './Node' );
 
 
 /**
@@ -10,7 +10,7 @@ var Node = require( './Node' );
  * Represents a node that has a body of code. When the body is set, it is stripped of
  * leading indents, and any leading or trailing newlines.
  */
-var CodeNode = Node.extend( {
+var CodeNode = AbstractNode.extend( {
 	abstractClass : true,
 	
 	

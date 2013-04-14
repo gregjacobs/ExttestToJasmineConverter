@@ -1,5 +1,5 @@
 /*global require, module */
-var Node = require( './Node' );
+var AbstractNode = require( './Node' );
 
 
 /**
@@ -9,7 +9,7 @@ var Node = require( './Node' );
  * Represents an Ext.Test `_should` block, which holds directives for ignored tests and
  * tests that should throw an error. 
  */
-var ShouldNode = Node.extend( {
+var ShouldNode = AbstractNode.extend( {
 	
 	/**
 	 * @constructor
