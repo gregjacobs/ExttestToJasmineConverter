@@ -410,7 +410,7 @@ var Parser = Class.extend( Object, {
 		    outerTestCaseMatch = new RegExp( this.outerTestCaseRe ).exec( this.input );  // note: make a copy of the outerTestCaseRe, so multiple uses of the regex (which is on the prototype) between instances are not affected
 		
 		if( !outerSuiteMatch && !outerTestCaseMatch ) {
-			throw new Error( "No outer Ext.Test Suite or TestCase found" );
+			throw new Error( "No outer Ext.Test Suite or TestCase found in file " + this.filePath );
 		}
 		
 		var startIdx,
@@ -980,7 +980,7 @@ var Parser = Class.extend( Object, {
 			// there's an 'empty string placeholder' method match at the current position
 			var openBraceIdx = match.index + match[ 0 ].length - 1;
 			if( this.input.charAt( openBraceIdx ) !== '{' ) {  // just make sure we have the brace
-				throw new Error( "Should have found an open brace for the helper method. Found '" + this.input.charAt( openBraceIdx ) + "' instead." );
+				throw new Error( "Should have found an open brace for the empty string placeholder method. Found '" + this.input.charAt( openBraceIdx ) + "' instead." );
 			}
 			
 			var closeBraceIdx = Parser.findMatchingClosingBrace( this.input, openBraceIdx );
