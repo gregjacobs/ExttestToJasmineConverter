@@ -107,6 +107,10 @@ describe( "Converter", function() {
 		it( "should convert a file with an indented outer TestCase", function() {
 			var input = fs.readFileSync( __dirname + '/sample/indentedOuterTestCase_input.js', 'utf8' ),
 			    expectedOutput = fs.readFileSync( __dirname + '/sample/indentedOuterTestCase_expectedOutput.js', 'utf8' );
+
+			// Strip all carriage returns off of the input and expected output. They needlessly get in the way.
+			input = input.replace( /\r/g, '' );
+			expectedOutput = expectedOutput.replace( /\r/g, '' );
 			
 			var convertedInput = converter.convert( input );
 			expect( convertedInput ).to.equal( expectedOutput );

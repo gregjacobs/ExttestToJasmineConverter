@@ -76,5 +76,5 @@ define( [
 			expect( retrievedModel2 ).not.toBe( retrievedModel1 );
 		} );
 		
-	} );
+	} );	
 } );
