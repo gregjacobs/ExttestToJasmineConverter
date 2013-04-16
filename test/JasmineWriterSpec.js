@@ -1025,6 +1025,15 @@ describe( 'node.JasmineWriter', function() {
 			} );
 			
 			
+			it( "should properly convert Y.Assert.isFunction() assertions", function() {
+				expect( jasmineWriter.convertAssertions( 'Y.Assert.isFunction( someVar );' ) )
+					.to.equal( 'expect( _.isFunction( someVar ) ).toBe( true );' );
+				
+				expect( jasmineWriter.convertAssertions( 'Y.Assert.isFunction( someVar, "someVar should have been a function" );' ) )
+					.to.equal( 'expect( _.isFunction( someVar ) ).toBe( true );  // orig YUI Test err msg: "someVar should have been a function"' );
+			} );
+			
+			
 			it( "should properly convert Y.Assert.isInstanceOf() assertions", function() {
 				expect( jasmineWriter.convertAssertions( 'Y.Assert.isInstanceOf( SomeClass, someVar );' ) )
 					.to.equal( 'expect( someVar instanceof SomeClass ).toBe( true );' );

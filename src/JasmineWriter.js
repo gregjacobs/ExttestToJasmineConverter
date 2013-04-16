@@ -547,6 +547,11 @@ var JasmineWriter = Class.extend( Object, {
 							errMsg = args[ 1 ];
 							break;
 							
+						case 'isFunction' :
+							ret = "expect( _.isFunction( " + args[ 0 ] + " ) ).toBe( true );";
+							errMsg = args[ 1 ];
+							break;
+							
 						case 'isInstanceOf' :
 							ret = "expect( " + args[ 1 ] + " instanceof " + args[ 0 ] + " ).toBe( true );";
 							errMsg = args[ 2 ];
