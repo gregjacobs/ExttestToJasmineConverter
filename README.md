@@ -2,7 +2,7 @@ ExttestToJasmineConverter
 =========================
 
 (Somewhat) Simple project to convert my old Ext.Test with [YUI](http://yuilibrary.com/yui/docs/test/) unit tests into 
-[Jasmine](http://pivotal.github.io/jasmine/) unit tests.
+[Jasmine](https://jasmine.github.io/) unit tests.
 
 Ext.Test was a good harness for a while, but with larger and larger projects, it was getting harder to figure out exactly 
 where errors were occurring. Also, Jasmine's syntax is just shorter and more readable. And with its ability to show a stack 
